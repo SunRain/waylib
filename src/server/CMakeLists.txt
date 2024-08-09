@@ -12,11 +12,23 @@ set(WAYLIB_INCLUDE_INSTALL_DIR
 set(QT_COMPONENTS Core Gui Quick)
 find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
 
+set(VERBOSE_QML_COMPILER ON)
+
+## QML module:
+include(ECMQmlModule)
+include(ECMConfiguredInstall)
+# include(KDECompilerSettings NO_POLICY_SCOPE)
+
 qt_standard_project_setup(REQUIRES 6.6)
 
 if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
     qt_policy(SET QTP0001 NEW)
     # the RESOURCE_PREFIX argument for qt_add_qml_module() defaults to ":/qt/qml/"
+endif()
+
+## QML import path:
+if(NOT QML_IMPORT_PATH)
+    set(QML_IMPORT_PATH ${CMAKE_BINARY_DIR}/bin CACHE STRING "" FORCE)
 endif()
 
 find_package(PkgConfig REQUIRED)
@@ -269,10 +281,21 @@ add_library(${TARGET}
 
 add_library(Waylib::WaylibServer ALIAS ${TARGET})
 
-qt_add_qml_module(${TARGET}
+# qt_add_qml_module(${TARGET}
+#     URI Waylib.Server
+#     VERSION "1.0" # Qt bug: The major version must be larger than 0
+#     OUTPUT_DIRECTORY "Waylib/Server"
+#     SOURCES
+#         ${HEADERS}
+#         ${PRIVATE_HEADERS}
+# )
+
+ecm_add_qml_module(${TARGET}
     URI Waylib.Server
     VERSION "1.0" # Qt bug: The major version must be larger than 0
     OUTPUT_DIRECTORY "Waylib/Server"
+    DEPENDENCIES ${QT_COMPONENTS}
+    GENERATE_PLUGIN_SOURCE
     SOURCES
         ${HEADERS}
         ${PRIVATE_HEADERS}
@@ -388,3 +411,5 @@ include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
     "qwlroots, Qt6Gui, Qt6Quick"
 )
+
+ecm_finalize_qml_module(${TARGET})
