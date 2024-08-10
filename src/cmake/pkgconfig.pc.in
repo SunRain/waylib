@@ -4,7 +4,7 @@ libdir=${CMAKE_INSTALL_FULL_LIBDIR}
 includedir=${include_dir}
 
 Name: ${name}
-Description:
+Description: ${description}
 Version: ${CMAKE_PROJECT_VERSION}
 Requires: ${depends}
 Libs: -l${library}

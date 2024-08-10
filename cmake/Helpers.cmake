@@ -1,4 +1,4 @@
-function(add_pkgconfig_module name library include_dir depends)
+function(add_pkgconfig_module name library include_dir depends description)
     # For cmake
     include(CMakePackageConfigHelpers)
     configure_file(${PROJECT_SOURCE_DIR}/src/cmake/pkgconfig.pc.in

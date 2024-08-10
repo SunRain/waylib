@@ -17,6 +17,7 @@ set(VERBOSE_QML_COMPILER ON)
 ## QML module:
 include(ECMQmlModule)
 include(ECMConfiguredInstall)
+include(ECMGeneratePkgConfigFile)
 # include(KDECompilerSettings NO_POLICY_SCOPE)
 
 qt_standard_project_setup(REQUIRES 6.6)
@@ -408,8 +409,24 @@ install(
 )
 
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
-add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
-    "qwlroots, Qt6Gui, Qt6Quick"
+
+if (WITH_SUBMODULE_QWLROOTS)
+    #TODO use hard-coded include dir parameters from qwlroots project setting
+    add_pkgconfig_module(${TARGET}
+        ${TARGET}
+        "${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET} -I${CMAKE_INSTALL_FULL_INCLUDEDIR}/qwlroots"
+        "Qt6Quick, wlroots = ${WLROOTS_VERSION}, pixman-1, wayland-protocols, wlr-protocols, xkbcommon"
+        "WaylibServer with static link of qwlroots"
+        )
+else()
+ecm_generate_pkgconfig_file(
+    BASE_NAME ${TARGET}
+    INCLUDE_INSTALL_DIR ${WAYLIB_INCLUDE_INSTALL_DIR}
+    DEPS "Qt6Quick, wlroots = ${WLROOTS_VERSION}, pixman-1, wayland-protocols, wlr-protocols, xkbcommon"
+    DESCRIPTION "WaylibServer with shared library link of qwlroots"
+    URL "https://github.com/sunRain/waylib"
+    INSTALL
 )
+endif()
 
 ecm_finalize_qml_module(${TARGET})
