@@ -300,6 +300,7 @@ ecm_add_qml_module(${TARGET}
     SOURCES
         ${HEADERS}
         ${PRIVATE_HEADERS}
+        ${SOURCES}
 )
 
 target_compile_definitions(${TARGET}
@@ -417,16 +418,17 @@ if (WITH_SUBMODULE_QWLROOTS)
         "${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET} -I${CMAKE_INSTALL_FULL_INCLUDEDIR}/qwlroots"
         "Qt6Quick, wlroots = ${WLROOTS_VERSION}, pixman-1, wayland-protocols, wlr-protocols, xkbcommon"
         "WaylibServer with static link of qwlroots"
-        )
+    )
 else()
-ecm_generate_pkgconfig_file(
-    BASE_NAME ${TARGET}
-    INCLUDE_INSTALL_DIR ${WAYLIB_INCLUDE_INSTALL_DIR}
-    DEPS "Qt6Quick, wlroots = ${WLROOTS_VERSION}, pixman-1, wayland-protocols, wlr-protocols, xkbcommon"
-    DESCRIPTION "WaylibServer with shared library link of qwlroots"
-    URL "https://github.com/sunRain/waylib"
-    INSTALL
-)
+    ecm_generate_pkgconfig_file(
+        BASE_NAME ${TARGET}
+        INCLUDE_INSTALL_DIR ${WAYLIB_INCLUDE_INSTALL_DIR}
+        DEPS "Qt6Quick, qwlroots"
+        DESCRIPTION "WaylibServer with shared library link of qwlroots"
+        URL "https://github.com/sunRain/waylib"
+        INSTALL
+    )
 endif()
 
 ecm_finalize_qml_module(${TARGET})
+
