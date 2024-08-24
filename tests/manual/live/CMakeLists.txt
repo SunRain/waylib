@@ -39,7 +39,7 @@ target_link_libraries(live
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    waylibserver
+    quickwaylibpulgin
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )

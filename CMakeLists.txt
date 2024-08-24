@@ -12,7 +12,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(ECM_VERSION 6.0.0)
 
-option(WITH_SUBMODULE_QWLROOTS "Use the QWlroots from git submodule" OFF)
+option(WITH_SUBMODULE_QWLROOTS "Use the QWlroots from git submodule" ON)
 option(BUILD_EXAMPLES "A minimum viable product Wayland compositor based on waylib and other examples" ON)
 option(BUILD_TESTS "Build test demos" ON)
 option(DISABLE_XWAYLAND "Disable the xwayland support" OFF)
@@ -34,9 +34,10 @@ set_package_properties(ECM
 feature_summary(WHAT REQUIRED_PACKAGES_NOT_FOUND FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 # we found extra-cmake-modules, so use it now
-set(CMAKE_MODULE_PATH
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${ECM_MODULE_PATH}
-)
+# set(CMAKE_MODULE_PATH
+#     "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${ECM_MODULE_PATH}
+# )
+set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
 ## Installation directories:
 include(KDEInstallDirs6)
@@ -67,7 +68,7 @@ endif()
 # For Unix/Linux
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
-# list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(PackageVersionHelper)
 
 add_subdirectory(src)

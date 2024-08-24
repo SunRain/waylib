@@ -58,10 +58,21 @@ target_link_libraries(tinywl-qtquick
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    Waylib::WaylibServer
+    # Waylib::WaylibServer
+    # waylibserverplugin
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )
+target_link_libraries(tinywl-qtquick
+    PUBLIC
+        waylibserver
+)
+
+target_link_libraries(tinywl-qtquick
+    PUBLIC
+        QWlroots::QWlroots
+)
+
 
 if (INSTALL_TINYWL)
     install(TARGETS tinywl-qtquick DESTINATION ${CMAKE_INSTALL_BINDIR})

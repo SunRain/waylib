@@ -37,9 +37,19 @@ target_link_libraries(surface-delegate
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    waylibserver
+    # waylibserverplugin
     PkgConfig::PIXMAN
 )
+target_link_libraries(surface-delegate
+    PUBLIC
+        waylibserver
+)
+
+target_link_libraries(surface-delegate
+    PUBLIC
+        QWlroots::QWlroots
+)
+
 
 if (INSTALL_TINYWL)
     install(TARGETS surface-delegate DESTINATION ${CMAKE_INSTALL_BINDIR})

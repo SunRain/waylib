@@ -5,7 +5,7 @@ set(WAYLIB_CMAKE_INSTALL_DIR
     CACHE STRING "Install directory for waylib cmake files"
 )
 set(WAYLIB_INCLUDE_INSTALL_DIR
-    "${CMAKE_INSTALL_INCLUDEDIR}/${TARGET}"
+    "${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET}"
     CACHE STRING "Install directory for waylib headers"
 )
 
@@ -13,6 +13,8 @@ set(QT_COMPONENTS Core Gui Quick)
 find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
 
 set(VERBOSE_QML_COMPILER ON)
+set(CMAKE_EXECUTABLE_ENABLE_EXPORTS ON)
+set(CMAKE_SHARED_LIBRARY_ENABLE_EXPORTS ON)
 
 ## QML module:
 include(ECMQmlModule)
@@ -28,9 +30,10 @@ if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
 endif()
 
 ## QML import path:
-if(NOT QML_IMPORT_PATH)
-    set(QML_IMPORT_PATH ${CMAKE_BINARY_DIR}/bin CACHE STRING "" FORCE)
-endif()
+# if(NOT QML_IMPORT_PATH)
+#     set(QML_IMPORT_PATH ${CMAKE_BINARY_DIR}/bin CACHE STRING "" FORCE)
+# endif()
+set(QML_IMPORT_PATH "${CMAKE_CURRENT_BINARY_DIR};${PROJECT_BINARY_DIR}/bin;${QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
@@ -275,12 +278,15 @@ if(NOT DISABLE_XWAYLAND)
     )
 endif()
 
-add_library(${TARGET}
-    SHARED
-    ${SOURCES}
-)
+# add_library(${TARGET}
+#     # SHARED
+#     STATIC
+#     ${HEADERS}
+#     ${PRIVATE_HEADERS}
+#     ${SOURCES}
+# )
 
-add_library(Waylib::WaylibServer ALIAS ${TARGET})
+# add_library(Waylib::WaylibServer ALIAS ${TARGET})
 
 # qt_add_qml_module(${TARGET}
 #     URI Waylib.Server
@@ -290,6 +296,10 @@ add_library(Waylib::WaylibServer ALIAS ${TARGET})
 #         ${HEADERS}
 #         ${PRIVATE_HEADERS}
 # )
+
+qt6_add_library(${TARGET} SHARED)
+# add_library(${TARGET} SHARED)
+add_library(Waylib::WaylibServer ALIAS ${TARGET})
 
 ecm_add_qml_module(${TARGET}
     URI Waylib.Server
@@ -314,7 +324,7 @@ set_target_properties(${TARGET}
     PROPERTIES
         VERSION ${CMAKE_PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
-        EXPORT_NAME WaylibServer
+        EXPORT_NAME "WaylibServer"
         PUBLIC_HEADER "${HEADERS}"
 	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
 	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
@@ -400,6 +410,7 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake
     DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
+    COMPONENT Devel
 )
 
 install(
@@ -431,4 +442,3 @@ else()
 endif()
 
 ecm_finalize_qml_module(${TARGET})
-

@@ -40,7 +40,18 @@ target_link_libraries(outputviewport
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    waylibserver
+    # waylibserverplugin
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )
+target_link_libraries(outputviewport
+    PUBLIC
+        waylibserver
+)
+
+target_link_libraries(outputviewport
+    PUBLIC
+        QWlroots::QWlroots
+)
+
+

@@ -42,10 +42,21 @@ target_link_libraries(outputcopy
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    waylibserver
+    # waylibserverplugin
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )
+target_link_libraries(outputcopy
+    PUBLIC
+        waylibserver
+)
+
+target_link_libraries(outputcopy
+    PUBLIC
+        QWlroots::QWlroots
+)
+
+
 
 if (INSTALL_TINYWL)
     install(TARGETS outputcopy DESTINATION ${CMAKE_INSTALL_BINDIR})
