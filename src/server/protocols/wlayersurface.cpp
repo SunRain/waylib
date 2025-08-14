@@ -34,7 +34,6 @@ public:
 
     void init();
     void connect();
-    void updatePosition();
     void instantRelease();
 
     bool setDesiredSize(QSize newSize);
@@ -50,7 +49,6 @@ public:
     W_DECLARE_PUBLIC(WLayerSurface)
 
     WSurface *surface = nullptr;
-    uint activated:1;
     QSize desiredSize;
     WLayerSurface::LayerType layer = WLayerSurface::LayerType::Bottom;
     WLayerSurface::AnchorTypes ancher =  WLayerSurface::AnchorType::None;
@@ -63,7 +61,6 @@ public:
 
 WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, qw_layer_surface_v1 *hh)
     : WToplevelSurfacePrivate(qq)
-    , activated(false)
 {
     initHandle(hh);
 }
@@ -252,24 +249,25 @@ WLayerSurface::~WLayerSurface()
 
 }
 
-bool WLayerSurface::isPopup() const
-{
-    return false;
-}
-
-bool WLayerSurface::doesNotAcceptFocus() const
+bool WLayerSurface::hasCapability(Capability cap) const
 {
     W_DC(WLayerSurface);
-    if (d->keyboardInteractivity == WLayerSurface::KeyboardInteractivity::None)
+    switch (cap) {
+        using enum Capability;
+    case Focus:
+        return d->keyboardInteractivity != WLayerSurface::KeyboardInteractivity::None;
+    case Activate:
+    case Maximized:
+    case FullScreen:
+        return false;
+    case Resize:
         return true;
-    return false;
+    default:
+        break;
+    }
+    Q_UNREACHABLE();
 }
 
-bool WLayerSurface::isActivated() const
-{
-    W_D(const WLayerSurface);
-    return d->activated;
-}
 
 WSurface *WLayerSurface::surface() const
 {
@@ -392,6 +390,11 @@ WLayerSurface::KeyboardInteractivity WLayerSurface::keyboardInteractivity() cons
     return d->keyboardInteractivity;
 }
 
+QString WLayerSurface::scope() const
+{
+    return QString::fromLocal8Bit((*handle())->scope);
+}
+
 WOutput *WLayerSurface::output() const
 {
     W_DC(WLayerSurface);
@@ -427,20 +430,14 @@ void WLayerSurface::closed()
     wlr_layer_surface_v1_destroy(nativeHandle());
 }
 
-void WLayerSurface::setActivate(bool on)
-{
-    W_D(WLayerSurface);
-    if (d->activated != on) {
-        d->activated = on;
-        Q_EMIT activateChanged();
-    }
-}
-
-bool WLayerSurface::checkNewSize(const QSize &size)
+bool WLayerSurface::checkNewSize(const QSize &size,  QSize *clipedSize)
 {
     W_D(WLayerSurface);
 
-    if (size.width() <= 0 || size.height() <= 0) {
+    // If the width or height arguments are zero, it means the client should decide its own window dimension.
+    if (size.width() < 0 || size.height() < 0) {
+        if (clipedSize)
+            *clipedSize = QSize(0, 0);
         return false;
     }
     return true;

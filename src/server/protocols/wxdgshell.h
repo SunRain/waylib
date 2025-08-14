@@ -5,23 +5,31 @@
 
 #include <WServer>
 
+class wlr_xdg_popup;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WXdgSurface;
+class WXdgToplevelSurface;
+class WXdgPopupSurface;
 class WXdgShellPrivate;
 class WAYLIB_SERVER_EXPORT WXdgShell : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WXdgShell)
 public:
-    WXdgShell();
+    WXdgShell(uint32_t version);
 
-    QVector<WXdgSurface*> surfaceList() const;
+    QVector<WXdgToplevelSurface*> toplevelSurfaceList() const;
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
-    void surfaceAdded(WXdgSurface *surface);
-    void surfaceRemoved(WXdgSurface *surface);
+    void toplevelSurfaceAdded(WXdgToplevelSurface *surface);
+    void toplevelSurfaceRemoved(WXdgToplevelSurface *surface);
+    void popupSurfaceAdded(WXdgPopupSurface *surface);
+    void popupSurfaceRemoved(WXdgPopupSurface *surface);
+
+public:
+    void initializeNewXdgPopupSurface(wlr_xdg_popup *popup);
 
 protected:
     void create(WServer *server) override;

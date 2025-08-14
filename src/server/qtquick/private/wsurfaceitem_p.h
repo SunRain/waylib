@@ -18,7 +18,7 @@ struct Q_DECL_HIDDEN SurfaceState {
     QSizeF contentSize;
     qreal bufferScale = 1.0;
 };
-
+class SubsurfaceContainer;
 class Q_DECL_HIDDEN WSurfaceItemPrivate : public QQuickItemPrivate
 {
 public:
@@ -36,7 +36,8 @@ public:
     void updateSubsurfaceItem();
     void onPaddingsChanged();
     void updateContentPosition();
-    WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface);
+    WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface, QQuickItem *parent);
+    void updateSubsurfaceContainers();
 
     void resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff);
     void updateEventItem(bool forceDestroy);
@@ -48,8 +49,10 @@ public:
                       paddings.top() + paddings.bottom());
     }
 
-    qreal getImplicitWidth() const override;
-    qreal getImplicitHeight() const override;
+    qreal calculateImplicitWidth() const;
+    qreal calculateImplicitHeight() const;
+    QRectF calculateBoundingRect() const;
+    void updateBoundingRect();
 
     inline WSurfaceItemContent *getItemContent() const {
         if (delegate || !contentContainer)
@@ -67,14 +70,18 @@ public:
     QQmlComponent *delegate = nullptr;
     bool delegateIsDirty = false;
     QQuickItem *eventItem = nullptr;
+    QPointer<SubsurfaceContainer> belowSubsurfaceContainer = nullptr;
+    QPointer<SubsurfaceContainer> aboveSubsurfaceContainer = nullptr;
     WSurfaceItem::ResizeMode resizeMode = WSurfaceItem::SizeFromSurface;
     WSurfaceItem::Flags surfaceFlags;
     QMarginsF paddings;
     QList<WSurfaceItem*> subsurfaces;
     qreal surfaceSizeRatio = 1.0;
     bool live = true;
+    bool subsurfacesVisible = true;
 
     uint32_t beforeRequestResizeSurfaceStateSeq = 0;
+    QRectF boundingRect;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

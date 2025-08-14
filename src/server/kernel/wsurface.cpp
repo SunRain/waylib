@@ -47,6 +47,9 @@ void WSurfacePrivate::on_commit()
     if (nativeHandle()->current.committed & WLR_SURFACE_STATE_BUFFER)
         updateBuffer();
 
+    if (nativeHandle()->current.committed & WLR_SURFACE_STATE_OFFSET)
+        updateBufferOffset();
+
     if (hasSubsurface) // Will make to true when qw_surface::newSubsurface
         updateHasSubsurface();
 }
@@ -111,14 +114,6 @@ void WSurfacePrivate::updateOutputs()
     updatePreferredBufferScale();
 }
 
-void WSurfacePrivate::setPrimaryOutput(WOutput *output)
-{
-    W_Q(WSurface);
-
-    primaryOutput = output;
-    Q_EMIT q->primaryOutputChanged();
-}
-
 void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
 {
     if (buffer) {
@@ -149,6 +144,16 @@ void WSurfacePrivate::updateBuffer()
         buffer = qw_buffer::from(&nativeHandle()->buffer->base);
 
     setBuffer(buffer);
+}
+
+void WSurfacePrivate::updateBufferOffset()
+{
+    W_Q(WSurface);
+    auto dBufferOffset = QPoint(nativeHandle()->current.dx, nativeHandle()->current.dy);
+    if (!dBufferOffset.isNull()) {
+        bufferOffset += dBufferOffset;
+        Q_EMIT q->bufferOffsetChanged();
+    }
 }
 
 void WSurfacePrivate::updatePreferredBufferScale()
@@ -285,7 +290,7 @@ int WSurface::bufferScale() const
 QPoint WSurface::bufferOffset() const
 {
     W_DC(WSurface);
-    return QPoint(d->nativeHandle()->current.dx, d->nativeHandle()->current.dy);
+    return d->bufferOffset;
 }
 
 qw_buffer *WSurface::buffer() const
@@ -311,19 +316,14 @@ void WSurface::enterOutput(WOutput *output)
         return;
     wlr_surface_send_enter(d->nativeHandle(), output->handle()->handle());
 
-    output->safeConnect(&WOutput::destroyed, this, [d] {
-        d->updateOutputs();
+    connect(output, &WOutput::aboutToBeInvalidated, this, [this, output] {
+        leaveOutput(output);
     });
     output->safeConnect(&WOutput::scaleChanged, this, [d] {
         d->updatePreferredBufferScale();
     });
 
     d->updateOutputs();
-
-    if (!d->primaryOutput) {
-        d->primaryOutput = output;
-        Q_EMIT primaryOutputChanged();
-    }
 
     // for subsurface
     auto surface = d->nativeHandle();
@@ -349,11 +349,6 @@ void WSurface::leaveOutput(WOutput *output)
     output->safeDisconnect(this);
     d->updateOutputs();
 
-    if (d->primaryOutput == output) {
-        d->primaryOutput = d->outputs.isEmpty() ? nullptr : d->outputs.last();
-        Q_EMIT primaryOutputChanged();
-    }
-
     // for subsurface
     auto surface = d->nativeHandle();
     wlr_subsurface *subsurface;
@@ -365,19 +360,13 @@ void WSurface::leaveOutput(WOutput *output)
         d->ensureSubsurface(subsurface)->leaveOutput(output);
     }
 
-    Q_EMIT outputLeft(output);
+    Q_EMIT outputLeave(output);
 }
 
-QVector<WOutput *> WSurface::outputs() const
+const QVector<WOutput *> &WSurface::outputs() const
 {
     W_DC(WSurface);
     return d->outputs;
-}
-
-WOutput *WSurface::primaryOutput() const
-{
-    W_DC(WSurface);
-    return d->primaryOutput;
 }
 
 bool WSurface::isSubsurface() const

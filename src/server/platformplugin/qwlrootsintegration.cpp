@@ -21,7 +21,13 @@
 #include <QGuiApplication>
 
 #include <private/qgenericunixfontdatabase_p.h>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+#include <private/qdesktopunixservices_p.h>
+#else
 #include <private/qgenericunixservices_p.h>
+#endif
+
 #include <private/qgenericunixeventdispatcher_p.h>
 #include <private/qhighdpiscaling_p.h>
 #if QT_CONFIG(vulkan)
@@ -172,7 +178,7 @@ QPointer<QInputDevice> QWlrootsIntegration::addInputDevice(WInputDevice *device,
                                     10, 32, seatName, QPointingDeviceUniqueId());
         break;
     }
-    case WLR_INPUT_DEVICE_TABLET_TOOL: {
+    case WLR_INPUT_DEVICE_TABLET: {
         qtdev = new QPointingDevice(name, systemId, QInputDevice::DeviceType::Stylus, QPointingDevice::PointerType::Pen,
                                     QInputDevice::Capability::XTilt | QInputDevice::Capability::YTilt | QInputDevice::Capability::Pressure,
                                     1, 32, seatName, QPointingDeviceUniqueId());
@@ -237,7 +243,11 @@ QInputDevice *QWlrootsIntegration::getInputDeviceFrom(WInputDevice *device)
 void QWlrootsIntegration::initialize()
 {
     if (isMaster()) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+        m_services.reset(new QDesktopUnixServices);
+#else
         m_services.reset(new QGenericUnixServices);
+#endif
     }
 
     if (m_onInitialized)

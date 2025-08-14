@@ -70,7 +70,7 @@ public:
         , textInputManagerV2(server->attach<WTextInputManagerV2>())
         , textInputManagerV3(server->attach<WTextInputManagerV3>())
         , virtualKeyboardManagerV1(server->attach<WVirtualKeyboardManagerV1>())
-        , activeTextInput(nullptr)
+        , enabledTextInput(nullptr)
         , activeInputMethod(nullptr)
         , activeKeyboardGrab(nullptr)
         , keyboardGrab()
@@ -92,7 +92,7 @@ public:
     const QPointer<WTextInputManagerV2> textInputManagerV2;
     const QPointer<WTextInputManagerV3> textInputManagerV3;
     const QPointer<WVirtualKeyboardManagerV1> virtualKeyboardManagerV1;
-    WTextInput *activeTextInput { nullptr };
+    WTextInput *enabledTextInput { nullptr };
     WInputMethodV2 *activeInputMethod { nullptr };
     qw_input_method_keyboard_grab_v2 *activeKeyboardGrab {nullptr};
 
@@ -129,22 +129,30 @@ WInputMethodHelper::~WInputMethodHelper()
     if (d->virtualKeyboardManagerV1) d->virtualKeyboardManagerV1->disconnect(this);
 }
 
-
 WTextInput *WInputMethodHelper::focusedTextInput() const
 {
     W_DC(WInputMethodHelper);
-    return d->activeTextInput;
+    auto focused = std::find_if(d->textInputs.begin(), d->textInputs.end(), [](WTextInput *ti) {
+        return ti->focusedSurface() != nullptr;
+    });
+    return focused != d->textInputs.end() ? *focused : nullptr;
 }
 
-void WInputMethodHelper::setFocusedTextInput(WTextInput *ti)
+WTextInput *WInputMethodHelper::enabledTextInput() const
+{
+    W_DC(WInputMethodHelper);
+    return d->enabledTextInput;
+}
+
+void WInputMethodHelper::setEnabledTextInput(WTextInput *ti)
 {
     W_D(WInputMethodHelper);
-    if (d->activeTextInput == ti)
+    if (d->enabledTextInput == ti)
         return;
-    if (d->activeTextInput) {
-        disconnect(d->activeTextInput, &WTextInput::committed, this, &WInputMethodHelper::handleFocusedTICommitted);
+    if (d->enabledTextInput) {
+        disconnect(d->enabledTextInput, &WTextInput::committed, this, &WInputMethodHelper::handleFocusedTICommitted);
     }
-    d->activeTextInput = ti;
+    d->enabledTextInput = ti;
     if (ti) {
         updateAllPopupSurfaces(ti->cursorRect()); // Note: if this is necessary
         connect(ti, &WTextInput::committed, this, &WInputMethodHelper::handleFocusedTICommitted, Qt::UniqueConnection);
@@ -165,6 +173,8 @@ void WInputMethodHelper::setInputMethod(WInputMethodV2 *im)
     if (d->activeInputMethod)
         d->activeInputMethod->safeDisconnect(this);
     d->activeInputMethod = im;
+    if (d->activeInputMethod)
+        d->activeInputMethod->safeConnect(&qw_input_method_v2::before_destroy, this, &WInputMethodHelper::handleActiveIMDestroyed);
 }
 
 qw_input_method_keyboard_grab_v2 *WInputMethodHelper::activeKeyboardGrab() const
@@ -197,14 +207,6 @@ void WInputMethodHelper::handleNewIMV2(qw_input_method_v2 *imv2)
     // Once input method is online, try to resend enter to textInput
     resendKeyboardFocus();
     // For text input v1, when after sendEnter, enabled signal will be emitted
-    wimv2->safeConnect(&qw_input_method_v2::before_destroy, this, [this, wimv2]{
-        if (inputMethod() == wimv2) {
-            setInputMethod(nullptr);
-        }
-        wimv2->safeDeleteLater();
-        notifyLeave();
-    });
-
 }
 
 void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
@@ -221,16 +223,15 @@ void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
     };
     auto setKeyboard = [this, d](qw_input_method_keyboard_grab_v2 *kgv2, WInputDevice *keyboard) {
         if (keyboard) {
-            auto qwKeyboard = qobject_cast<qw_keyboard *>(keyboard->handle());
-            auto *virtualKeyboard = qobject_cast<qw_virtual_keyboard_v1 *>(qwKeyboard);
+            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(*keyboard->handle());
             // refer to:
             // https://github.com/swaywm/sway/blob/master/sway/input/keyboard.c#L391
             if (virtualKeyboard
-                && wl_resource_get_client(virtualKeyboard->handle()->resource)
+                && wl_resource_get_client(virtualKeyboard->resource)
                     == wl_resource_get_client(kgv2->handle()->resource)) {
                 return;
             }
-            kgv2->set_keyboard(*qwKeyboard);
+            kgv2->set_keyboard(wlr_keyboard_from_input_device(*keyboard->handle()));
         } else {
             kgv2->set_keyboard(nullptr);
         }
@@ -266,27 +267,27 @@ void WInputMethodHelper::handleNewIPSV2(qw_input_popup_surface_v2 *ipsv2)
     auto createPopupSurface = [this, d] (WSurface *focus, QRect cursorRect, qw_input_popup_surface_v2 *popupSurface){
         auto surface = new WInputPopupSurface(popupSurface, focus, this);
         d->popupSurfaces.append(surface);
-        Q_EMIT inputPopupSurfaceV2Added(surface);
         updatePopupSurface(surface, cursorRect);
+        Q_EMIT inputPopupSurfaceV2Added(surface);
         surface->safeConnect(&qw_input_popup_surface_v2::before_destroy, this, [this, d, surface](){
             d->popupSurfaces.removeAll(surface);
             Q_EMIT inputPopupSurfaceV2Removed(surface);
             surface->safeDeleteLater();
         });
     };
-
-    if (auto ti = focusedTextInput()) {
+    auto ti = enabledTextInput();
+    if (ti && ti->focusedSurface()) {
         createPopupSurface(ti->focusedSurface(), ti->cursorRect(), ipsv2);
     }
 }
 
-void WInputMethodHelper::handleNewVKV1(qw_virtual_keyboard_v1 *vkv1)
+void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
 {
     W_D(WInputMethodHelper);
-    WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&(*vkv1)->keyboard.base));
+    WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&vkv1->keyboard.base));
     d->virtualKeyboards.append(keyboard);
     d->seat->attachInputDevice(keyboard);
-    connect(vkv1, &qw_virtual_keyboard_v1::before_destroy, this, [d, this, keyboard] () {
+    keyboard->safeConnect(&qw_input_device::before_destroy, this, [d, this, keyboard] () {
         if (d->seat) d->seat->detachInputDevice(keyboard);
         d->virtualKeyboards.removeOne(keyboard);
         keyboard->safeDeleteLater();
@@ -324,14 +325,14 @@ void WInputMethodHelper::disableTI(WTextInput *ti)
 {
     Q_ASSERT(ti);
     W_D(WInputMethodHelper);
-    if (focusedTextInput() == ti) {
+    if (enabledTextInput() == ti) {
         // Should we consider the case when the same text input is disabled and then enabled at the same time.
         auto im = inputMethod();
         if (im) {
             im->sendDeactivate();
             im->sendDone();
         }
-        setFocusedTextInput(nullptr);
+        setEnabledTextInput(nullptr);
     }
 }
 
@@ -370,7 +371,7 @@ void WInputMethodHelper::handleTIEnabled()
     Q_ASSERT(ti);
     W_D(WInputMethodHelper);
     auto im = inputMethod();
-    auto activeTI = focusedTextInput();
+    auto activeTI = enabledTextInput();
     if (activeTI == ti)
         return;
     if (activeTI) {
@@ -382,7 +383,7 @@ void WInputMethodHelper::handleTIEnabled()
         // Notify last active text input to leave.
         activeTI->sendLeave();
     }
-    setFocusedTextInput(ti);
+    setEnabledTextInput(ti);
     // Try to activate input method.
     if (im) {
         im->sendActivate();
@@ -398,8 +399,12 @@ void WInputMethodHelper::handleTIDisabled()
 
 void WInputMethodHelper::handleFocusedTICommitted()
 {
-    auto ti = focusedTextInput();
+    auto ti = enabledTextInput();
     Q_ASSERT(ti);
+    if (!ti->focusedSurface()) {
+        qCWarning(qLcInputMethod) << "Discard commit to unfocused but not disabled text input.";
+        return;
+    }
     qCDebug(qLcInputMethod) << "Focused text input" << ti << "committed."
                             << "Cursor rectangle:" << ti->cursorRect();
     auto im = inputMethod();
@@ -421,18 +426,25 @@ void WInputMethodHelper::handleIMCommitted()
 {
     auto im = inputMethod();
     Q_ASSERT(im);
-    auto ti = focusedTextInput();
-    if (ti) {
+    auto ti = enabledTextInput();
+    if (ti && ti->focusedSurface()) {
         ti->handleIMCommitted(im);
     }
+}
+
+void WInputMethodHelper::handleActiveIMDestroyed()
+{
+    auto im = inputMethod();
+    Q_ASSERT(im);
+    setInputMethod(nullptr);
+    im->safeDeleteLater();
+    notifyLeave();
 }
 
 void WInputMethodHelper::notifyLeave()
 {
     if (auto ti = focusedTextInput()) {
-        if (ti->focusedSurface()) {
-            ti->sendLeave();
-        }
+        ti->sendLeave();
     }
 }
 

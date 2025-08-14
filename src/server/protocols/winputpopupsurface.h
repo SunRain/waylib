@@ -4,7 +4,6 @@
 #pragma once
 
 #include <wtoplevelsurface.h>
-#include <qwbox.h>
 
 QW_BEGIN_NAMESPACE
 class qw_input_popup_surface_v2;
@@ -25,7 +24,7 @@ public:
     WSurface *surface() const override;
     QW_NAMESPACE::qw_input_popup_surface_v2 *handle() const;
     QRect getContentGeometry() const override;
-    bool doesNotAcceptFocus() const override;
+    bool hasCapability(Capability cap) const override;
     bool isActivated() const override;
     WSurface *parentSurface() const override;
 
@@ -35,7 +34,7 @@ Q_SIGNALS:
     void cursorRectChanged();
 
 public Q_SLOTS:
-    bool checkNewSize(const QSize &size) override;
+    bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;
 
 protected:
     ~WInputPopupSurface() override = default;

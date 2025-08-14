@@ -60,50 +60,21 @@ void WCursorPrivate::instantRelease()
     delete handle();
 }
 
-const QPointingDevice *getDevice(const QString &seatName) {
-    const auto devices = QInputDevice::devices();
-    for (auto i : devices) {
-        if (i->seatName() == seatName && (i->type() == QInputDevice::DeviceType::Mouse
-                                          || i->type() == QInputDevice::DeviceType::TouchPad))
-            return static_cast<const QPointingDevice*>(i);
-    }
-
-    return nullptr;
-}
-
-void WCursorPrivate::sendEnterEvent() {
-    if (enterWindowEventHasSend)
-        return;
-
-    W_Q(WCursor);
-
-    auto device = getDevice(seat->name());
-    Q_ASSERT(device && WInputDevice::from(device));
-
-    if (WInputDevice::from(device)->seat()) {
-        enterWindowEventHasSend = true;
-        const QPointF global = q->position();
-        const QPointF local = global - eventWindow->position();
-        QEnterEvent event(local, local, global, device);
-        QCoreApplication::sendEvent(eventWindow, &event);
-    }
-}
-
-void WCursorPrivate::sendLeaveEvent()
+void WCursorPrivate::sendEnterEvent(WInputDevice *device)
 {
-    if (leaveWindowEventHasSend)
-        return;
+    W_Q(WCursor);
+    Q_ASSERT(device->qtDevice());
+    const QPointF global = q->position();
+    const QPointF local = global - eventWindow->position();
+    QEnterEvent event(local, local, global, device->qtDevice<QPointingDevice>());
+    QCoreApplication::sendEvent(eventWindow, &event);
+}
 
-    auto device = getDevice(seat->name());
-    if (!device)
-        return;
-    if (!WInputDevice::from(device))
-        return;
-    if (WInputDevice::from(device)->seat()) {
-        leaveWindowEventHasSend = true;
-        QInputEvent event(QEvent::Leave, device);
-        QCoreApplication::sendEvent(eventWindow, &event);
-    }
+void WCursorPrivate::sendLeaveEvent(WInputDevice *device)
+{
+    Q_ASSERT(device->qtDevice());
+    QInputEvent event(QEvent::Leave, device->qtDevice<QPointingDevice>());
+    QCoreApplication::sendEvent(eventWindow, &event);
 }
 
 void WCursorPrivate::on_motion(wlr_pointer_motion_event *event)
@@ -125,7 +96,7 @@ void WCursorPrivate::on_button(wlr_pointer_button_event *event)
     auto device = qw_pointer::from(event->pointer);
     button = WCursor::fromNativeButton(event->button);
 
-    if (event->state == WLR_BUTTON_RELEASED) {
+    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
         state &= ~button;
     } else {
         state |= button;
@@ -144,9 +115,9 @@ void WCursorPrivate::on_axis(wlr_pointer_axis_event *event)
 
     if (Q_LIKELY(seat)) {
         seat->notifyAxis(q_func(), WInputDevice::fromHandle(device), event->source,
-                         event->orientation == WLR_AXIS_ORIENTATION_HORIZONTAL
-                         ? Qt::Horizontal : Qt::Vertical, event->delta, event->delta_discrete,
-                         event->time_msec);
+                         event->orientation == WL_POINTER_AXIS_HORIZONTAL_SCROLL
+                         ? Qt::Horizontal : Qt::Vertical, event->relative_direction,
+                         event->delta, event->delta_discrete, event->time_msec);
     }
 }
 
@@ -386,6 +357,7 @@ bool WCursor::setPositionWithChecker(qw_input_device *device, const QPointF &pos
 
 void WCursor::setScalePosition(qw_input_device *device, const QPointF &ratio)
 {
+    Q_ASSERT(layout());
     const QPointF oldPos = position();
     d_func()->handle()->warp_absolute(*device, ratio.x(), ratio.y());
 
@@ -510,10 +482,6 @@ void WCursor::setSeat(WSeat *seat)
         connect(d->seat, &WSeat::requestCursorShape, this, &WCursor::requestedCursorShapeChanged);
         connect(d->seat, &WSeat::requestCursorSurface, this, &WCursor::requestedCursorSurfaceChanged);
         connect(d->seat, &WSeat::requestDrag, this, &WCursor::requestedDragSurfaceChanged);
-
-        if (d->eventWindow) {
-            d->sendEnterEvent();
-        }
     }
 
     Q_EMIT seatChanged();
@@ -541,15 +509,17 @@ void WCursor::setEventWindow(QWindow *window)
         return;
 
     if (d->eventWindow && d->seat) {
-        d->sendLeaveEvent();
+        for (auto device : std::as_const(d->deviceList)) {
+            d->sendLeaveEvent(device);
+        }
     }
 
     d->eventWindow = window;
-    d->enterWindowEventHasSend = false;
-    d->leaveWindowEventHasSend = false;
 
-    if (d->eventWindow && d->seat && !d->deviceList.isEmpty()) {
-        d->sendEnterEvent();
+    if (d->eventWindow && d->seat) {
+        for (auto device : std::as_const(d->deviceList)) {
+            d->sendEnterEvent(device);
+        }
     }
 }
 
@@ -609,9 +579,9 @@ bool WCursor::attachInputDevice(WInputDevice *device)
     d->handle()->attach_input_device(device->handle()->handle());
     d->deviceList << device;
 
-    if (d->eventWindow && d->deviceList.count() == 1) {
+    if (d->eventWindow) {
         Q_ASSERT(d->seat);
-        d->sendEnterEvent();
+        d->sendEnterEvent(device);
     }
 
     return true;
@@ -627,9 +597,9 @@ void WCursor::detachInputDevice(WInputDevice *device)
     d->handle()->detach_input_device(device->handle()->handle());
     d->handle()->map_input_to_output(device->handle()->handle(), nullptr);
 
-    if (d->eventWindow && d->deviceList.isEmpty()) {
+    if (d->eventWindow && device->seat()) {
         Q_ASSERT(d->seat);
-        d->sendLeaveEvent();
+        d->sendLeaveEvent(device);
     }
 }
 
@@ -641,7 +611,7 @@ void WCursor::setLayout(WOutputLayout *layout)
         return;
 
     d->outputLayout = layout;
-    d->handle()->attach_output_layout(*d->outputLayout);
+    d->handle()->attach_output_layout(*d->outputLayout->handle());
 
     if (d->outputLayout) {
         for (auto o : d->outputLayout->outputs())

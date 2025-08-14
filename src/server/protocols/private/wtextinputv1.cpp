@@ -144,13 +144,18 @@ IME::Features WTextInputV1::features() const
 
 void WTextInputV1::sendEnter(WSurface *surface)
 {
-    zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->handle()->resource);
+    // Note: For text input v1, activation and surface focus is managed by client.
+    // Do not send focus to text input unless it's activated.
+    if (d_func()->active)
+        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->handle()->resource);
     Q_EMIT this->enabled();
 }
 
 void WTextInputV1::sendLeave()
 {
     if (focusedSurface()) {
+        W_D(WTextInputV1);
+        d->focusedSurface = nullptr;
         zwp_text_input_v1_send_leave(d_func()->resource);
         Q_EMIT disabled();
     }
@@ -244,9 +249,7 @@ void text_input_handle_activate(wl_client *client,
         if (text_input->focusedSurface())
             text_input->focusedSurface()->safeDisconnect(text_input);
         d->focusedSurface = wSurface;
-        wSurface->safeConnect(&qw_surface::before_destroy, text_input, [d, text_input]{
-            d->focusedSurface = nullptr;
-        });
+        wSurface->safeConnect(&WSurface::aboutToBeInvalidated, text_input, &WTextInputV1::sendLeave);
     }
     d->active = true;
     Q_EMIT text_input->activate();
@@ -264,6 +267,7 @@ void text_input_handle_deactivate(wl_client *client,
         return;
 
     d->seat = nullptr;
+    d->active = false;
     Q_EMIT text_input->deactivate();
 }
 

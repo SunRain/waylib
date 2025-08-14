@@ -216,15 +216,10 @@ void handle_text_input_enable(wl_client *client, wl_resource *resource, wl_resou
         // FIXME: Is this necessary? As protocol does not guarantee disable is ought to happen after enable, we may still need this.
         qCWarning(qLcTextInputV2) << "Client" << client << "does emit disable on surface"
                                  << d->enabledSurface << "before enable on surface" << wSurface;
-        Q_EMIT text_input->disableOnSurface(d->enabledSurface);
-        d->enabledSurface->safeDisconnect(text_input);
+        text_input->clearEnabledSurface();
     }
     d->enabledSurface = wSurface;
-    wSurface->safeConnect(&qw_surface::before_destroy, text_input, [d, text_input]{
-        Q_EMIT text_input->disableOnSurface(d->enabledSurface);
-        d->enabledSurface->safeDisconnect(text_input);
-        d->enabledSurface = nullptr;
-    });
+    QObject::connect(d->enabledSurface, &WSurface::aboutToBeInvalidated, text_input, &WTextInputV2::clearEnabledSurface);
     Q_EMIT text_input->enableOnSurface(wSurface);
 }
 
@@ -253,9 +248,7 @@ void handle_text_input_disable(wl_client *client, wl_resource *resource, wl_reso
                                     << "which is enabled on another surface" << d->enabledSurface;
         return;
     }
-    d->enabledSurface->safeDisconnect(text_input);
-    Q_EMIT text_input->disableOnSurface(wSurface);
-    d->enabledSurface = nullptr;
+    text_input->clearEnabledSurface();
 }
 
 void handle_text_input_show_input_panel(wl_client *client, wl_resource *resource)
@@ -411,6 +404,7 @@ void WTextInputV2::sendEnter(WSurface *surface)
 {
     W_D(WTextInputV2);
     d->focusedSurface = surface;
+    connect(d->focusedSurface, &WSurface::aboutToBeInvalidated, this, &WTextInputV2::sendLeave, Qt::UniqueConnection);
     zwp_text_input_v2_send_enter(d->resource, 0, surface->handle()->handle()->resource);
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT enabled();
@@ -420,6 +414,10 @@ void WTextInputV2::sendEnter(WSurface *surface)
 void WTextInputV2::sendLeave()
 {
     W_D(WTextInputV2);
+    if (!d->focusedSurface) {
+        qCWarning(qLcTextInputV2()) << "Send leave to a null focused surface.";
+        return;
+    }
     zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->handle()->resource);
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT disabled();
@@ -483,5 +481,14 @@ WTextInputV2::WTextInputV2(QObject *parent)
             Q_UNREACHABLE();
         }
     });
+}
+
+void WTextInputV2::clearEnabledSurface()
+{
+    W_D(WTextInputV2);
+    Q_ASSERT(d->enabledSurface);
+    Q_EMIT disableOnSurface(d->enabledSurface);
+    d->enabledSurface->safeDisconnect(this);
+    d->enabledSurface = nullptr;
 }
 WAYLIB_SERVER_END_NAMESPACE

@@ -11,6 +11,8 @@
 #include <QInputDevice>
 #include <QPointer>
 
+#include <private/qpointingdevice_p.h>
+
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -35,6 +37,7 @@ public:
     W_DECLARE_PUBLIC(WInputDevice);
 
     QPointer<QInputDevice> qtDevice;
+    QPointer<QObject> hoverTarget;
     WSeat *seat = nullptr;
 };
 
@@ -70,7 +73,7 @@ WInputDevice::Type WInputDevice::type() const
     case WLR_INPUT_DEVICE_KEYBOARD: return Type::Keyboard;
     case WLR_INPUT_DEVICE_POINTER: return Type::Pointer;
     case WLR_INPUT_DEVICE_TOUCH: return Type::Touch;
-    case WLR_INPUT_DEVICE_TABLET_TOOL: return Type::Tablet;
+    case WLR_INPUT_DEVICE_TABLET: return Type::Tablet;
     case WLR_INPUT_DEVICE_TABLET_PAD: return Type::TabletPad;
     case WLR_INPUT_DEVICE_SWITCH: return Type::Switch;
     }
@@ -102,6 +105,41 @@ QInputDevice *WInputDevice::qtDevice() const
 {
     W_DC(WInputDevice);
     return d->qtDevice;
+}
+
+void WInputDevice::setExclusiveGrabber(QObject *grabber)
+{
+    W_D(WInputDevice);
+    auto pointerDevice = qobject_cast<QPointingDevice*>(d->qtDevice);
+    if (!pointerDevice)
+        return;
+    auto dd = QPointingDevicePrivate::get(pointerDevice);
+    if (dd->activePoints.isEmpty())
+        return;
+    auto firstPoint = dd->activePoints.values().first();
+    dd->setExclusiveGrabber(nullptr, firstPoint.eventPoint, grabber);
+}
+
+QObject *WInputDevice::exclusiveGrabber() const
+{
+    W_DC(WInputDevice);
+    auto pointerDevice = qobject_cast<QPointingDevice*>(d->qtDevice);
+    if (!pointerDevice)
+        return nullptr;
+    auto dd = QPointingDevicePrivate::get(pointerDevice);
+    return dd->firstPointExclusiveGrabber();
+}
+
+QObject *WInputDevice::hoverTarget() const
+{
+    W_DC(WInputDevice);
+    return d->hoverTarget;
+}
+
+void WInputDevice::setHoverTarget(QObject *object)
+{
+    W_D(WInputDevice);
+    d->hoverTarget = object;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

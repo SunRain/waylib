@@ -6,6 +6,7 @@
 #include <wglobal.h>
 #include <WSurface>
 #include <wtoplevelsurface.h>
+#include <wtextureproviderprovider.h>
 
 #include <QQuickItem>
 
@@ -16,8 +17,8 @@ QT_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurfaceItemContentPrivate;
-class WBufferTextureProvider;
-class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem
+class WSGTextureProvider;
+class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem, public virtual WTextureProviderProvider
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WSurfaceItemContent)
@@ -30,6 +31,9 @@ class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem
     Q_PROPERTY(qreal implicitHeight READ implicitHeight NOTIFY implicitHeightChanged)
     Q_PROPERTY(QPoint bufferOffset READ bufferOffset NOTIFY bufferOffsetChanged FINAL)
     Q_PROPERTY(bool ignoreBufferOffset READ ignoreBufferOffset WRITE setIgnoreBufferOffset NOTIFY ignoreBufferOffsetChanged FINAL)
+    Q_PROPERTY(QRectF bufferSourceRect READ bufferSourceRect NOTIFY bufferSourceRectChanged FINAL)
+    Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio NOTIFY devicePixelRatioChanged FINAL)
+    Q_PROPERTY(qreal alphaModifier READ alphaModifier NOTIFY alphaModifierChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItemContent)
 
 public:
@@ -41,7 +45,8 @@ public:
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
-    WBufferTextureProvider *wTextureProvider() const;
+    WSGTextureProvider *wTextureProvider() const override;
+    WOutputRenderWindow *outputRenderWindow() const override;
 
     bool cacheLastBuffer() const;
     void setCacheLastBuffer(bool newCacheLastBuffer);
@@ -54,12 +59,19 @@ public:
     bool ignoreBufferOffset() const;
     void setIgnoreBufferOffset(bool newIgnoreBufferOffset);
 
+    QRectF bufferSourceRect() const;
+    qreal devicePixelRatio() const;
+    qreal alphaModifier() const;
+
 Q_SIGNALS:
     void surfaceChanged();
     void cacheLastBufferChanged();
     void liveChanged();
     void bufferOffsetChanged();
     void ignoreBufferOffsetChanged();
+    void bufferSourceRectChanged();
+    void devicePixelRatioChanged();
+    void alphaModifierChanged();
 
 private:
     friend class WSurfaceItem;
@@ -71,7 +83,6 @@ private:
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
     void releaseResources() override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;
-    QAtomicInteger<bool> rendered = false;
 
     // Using by Qt library
     Q_SLOT void invalidateSceneGraph();
@@ -103,6 +114,8 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_PROPERTY(qreal surfaceSizeRatio READ surfaceSizeRatio WRITE setSurfaceSizeRatio NOTIFY surfaceSizeRatioChanged)
     Q_PROPERTY(qreal bufferScale READ bufferScale NOTIFY bufferScaleChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged FINAL)
+    Q_PROPERTY(QRectF boundingRect READ boundingRect NOTIFY boundingRectChanged)
+    Q_PROPERTY(bool subsurfacesVisible READ subsurfacesVisible WRITE setSubsurfacesVisible NOTIFY subsurfacesVisibleChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
@@ -115,7 +128,9 @@ public:
 
     enum Flag {
         DontCacheLastBuffer = 0x1,
-        RejectEvent = 0x2
+        RejectEvent = 0x2,
+        NonLive = 0x4,
+        DelegateForSubsurface = 0x8,
     };
     Q_ENUM(Flag)
     Q_DECLARE_FLAGS(Flags, Flag)
@@ -130,6 +145,8 @@ public:
 
     explicit WSurfaceItem(QQuickItem *parent = nullptr);
     ~WSurfaceItem();
+
+    QRectF boundingRect() const override;
 
     static WSurfaceItem *fromFocusObject(QObject *focusObject);
 
@@ -173,11 +190,13 @@ public:
     
     // resize internal surface, should be in SizeFromSurface mode
     bool resizeSurface(const QSizeF &newSize);
+    bool subsurfacesVisible() const;
+    void setSubsurfacesVisible(bool newSubsurfacesVisible);
 
 Q_SIGNALS:
     void surfaceChanged();
-    void subsurfaceAdded(WSurfaceItem *item);
-    void subsurfaceRemoved(WSurfaceItem *item);
+    void subsurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);
+    void subsurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);
     void resizeModeChanged();
     void effectiveVisibleChanged();
     void eventItemChanged();
@@ -191,6 +210,8 @@ Q_SIGNALS:
     void contentItemChanged();
     void delegateChanged();
     void shellSurfaceChanged();
+    void boundingRectChanged();
+    void subsurfacesVisibleChanged();
 
 protected:
     explicit WSurfaceItem(WSurfaceItemPrivate &dd, QQuickItem *parent = nullptr);

@@ -26,9 +26,17 @@ class WAYLIB_SERVER_EXPORT WToplevelSurface : public WWrapObject
     QML_UNCREATABLE("Only create in C++")
 
 public:
-    virtual bool doesNotAcceptFocus() const {
+    enum class Capability {
+        Focus,
+        Activate,
+        Maximized,
+        FullScreen,
+        Resize,
+    };
+
+    virtual bool hasCapability([[maybe_unused]] Capability cap) const {
         return false;
-    }
+    };
 
     virtual WSurface *surface() const {
         return nullptr;
@@ -90,9 +98,12 @@ public Q_SLOTS:
         Q_UNUSED(on);
     }
 
-    virtual bool checkNewSize(const QSize &size) = 0;
+    // when `checkNewSize` return false, will set `clipedSize` to fit max/min size
+    virtual bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) = 0;
     virtual void resize(const QSize &size) {
         Q_UNUSED(size)
+    }
+    virtual void close() {
     }
 
 Q_SIGNALS:
@@ -110,7 +121,7 @@ Q_SIGNALS:
     void requestMaximize();
     void requestCancelMaximize();
     void requestMinimize();
-    void requestCancelMinimize();
+    void requestCancelMinimize(); // Only for XWaylandSurface
     void requestFullscreen();
     void requestCancelFullscreen();
     void requestShowWindowMenu(WSeat *seat, QPoint pos, quint32 serial);

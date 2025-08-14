@@ -40,7 +40,7 @@ QW_USE_NAMESPACE
 Helper::Helper(QObject *parent)
     : QObject(parent)
     , m_server(new WServer(this))
-    , m_outputLayout(new WQuickOutputLayout(this))
+    , m_outputLayout(new WQuickOutputLayout(m_server))
     , m_cursor(new WCursor(this))
 {
     m_renderWindow = new WOutputRenderWindow();
@@ -163,14 +163,15 @@ void Helper::initProtocols(QQmlEngine *qmlEngine)
             // WOutputRenderWindow will ignore this ouptut on render.
             if (!qwoutput->property("_Enabled").toBool()) {
                 qwoutput->setProperty("_Enabled", true);
+                qw_output_state newState;
 
                 if (!qwoutput->handle()->current_mode) {
                     auto mode = qwoutput->preferred_mode();
                     if (mode)
-                        output->setMode(mode);
+                        newState.set_mode(mode);
                 }
-                output->enable(true);
-                bool ok = output->commit();
+                newState.set_enabled(true);
+                bool ok = qwoutput->commit_state(newState);
                 Q_ASSERT(ok);
             }
         }
@@ -210,7 +211,6 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine waylandEngine;
-    waylandEngine.loadFromModule("OutputCopy", "Main");
 
     Helper *helper = waylandEngine.singletonInstance<Helper*>("OutputCopy", "Helper");
     Q_ASSERT(helper);
@@ -222,7 +222,7 @@ int main(int argc, char *argv[]) {
         qw_output *newOutput = nullptr;
 
        if (auto x11 = qw_x11_backend::from(backend)) {
-            newOutput = qw_output::from(x11->output_create());
+           newOutput = qw_output::from(x11->output_create());
        } else if (auto wayland = qw_wayland_backend::from(backend)) {
            newOutput = qw_output::from(wayland->output_create());
        }
@@ -231,8 +231,9 @@ int main(int argc, char *argv[]) {
            return;
 
        // 800x600
-       newOutput->set_custom_mode(1000, 600, 0);
-       newOutput->commit();
+       qw_output_state newState;
+       newState.set_custom_mode(1000, 600, 0);
+       newOutput->commit_state(newState);
     }, nullptr);
 
     return app.exec();

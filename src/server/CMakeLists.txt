@@ -37,7 +37,7 @@ set(QML_IMPORT_PATH "${CMAKE_CURRENT_BINARY_DIR};${PROJECT_BINARY_DIR}/bin;${QML
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
-pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
+pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(WAYLAND_PROTOCOLS REQUIRED IMPORTED_TARGET wayland-protocols)
 pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
@@ -45,6 +45,8 @@ pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_search_module(EGL REQUIRED IMPORTED_TARGET egl)
+
+add_compile_definitions(WLR_PRIVATE=)
 
 ws_generate(
     server
@@ -67,6 +69,13 @@ ws_generate(
     xdg-output-unstable-v1-protocol
 )
 
+ws_generate(
+    server
+    wayland-protocols
+    staging/color-management/color-management-v1.xml
+    color-management-v1-protocol
+)
+
 set(SOURCES
     kernel/wbackend.cpp
     kernel/wcursor.cpp
@@ -78,7 +87,7 @@ set(SOURCES
     kernel/wsurface.cpp
     kernel/wtoplevelsurface.cpp
 
-    kernel/wtexture.cpp
+
     kernel/wtypes.cpp
 
     kernel/woutputlayout.cpp
@@ -100,11 +109,14 @@ set(SOURCES
     qtquick/wquicktextureproxy.cpp
     qtquick/woutputlayer.cpp
     qtquick/wrenderbufferblitter.cpp
-    qtquick/wxdgsurfaceitem.cpp
+    qtquick/wxdgtoplevelsurfaceitem.cpp
+    qtquick/wxdgpopupsurfaceitem.cpp
     qtquick/wlayersurfaceitem.cpp
     qtquick/wxwaylandsurfaceitem.cpp
     qtquick/wqmlcreator.cpp
     qtquick/winputpopupsurfaceitem.cpp
+    qtquick/wsgtextureprovider.cpp
+    qtquick/wtextureproviderprovider.cpp
 
     qtquick/private/wquickcoordmapper.cpp
     qtquick/private/wquicksocketattached.cpp
@@ -129,6 +141,9 @@ set(SOURCES
 
     protocols/wxdgshell.cpp
     protocols/wxdgsurface.cpp
+    protocols/wxdgtoplevelsurface.cpp
+    protocols/wxdgpopupsurface.cpp
+
     protocols/wxwayland.cpp
     protocols/wxwaylandsurface.cpp
     protocols/wlayersurface.cpp
@@ -145,6 +160,7 @@ set(SOURCES
     protocols/private/wvirtualkeyboardv1.cpp
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
+    protocols/wextforeigntoplevellistv1.cpp
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
 )
@@ -159,7 +175,6 @@ set(HEADERS
     kernel/wevent.h
     kernel/wserver.h
     kernel/wsurface.h
-    kernel/wtexture.h
     kernel/wtypes.h
     kernel/woutputlayout.h
     kernel/wxcursorimage.h
@@ -175,7 +190,6 @@ set(HEADERS
     kernel/WSeat
     kernel/WEvent
     kernel/WInputEvent
-    kernel/WTexture
     kernel/WSurface
 
     qtquick/wsurfaceitem.h
@@ -193,12 +207,14 @@ set(HEADERS
     qtquick/wquicktextureproxy.h
     qtquick/woutputlayer.h
     qtquick/wrenderbufferblitter.h
-    qtquick/wxdgsurfaceitem.h
+    qtquick/wxdgtoplevelsurfaceitem.h
+    qtquick/wxdgpopupsurfaceitem.h
     qtquick/wlayersurfaceitem.h
     qtquick/wxwaylandsurfaceitem.h
     qtquick/winputpopupsurfaceitem.h
     qtquick/wqmlcreator.h
-    qtquick/wbuffertextureprovider.h
+    qtquick/wsgtextureprovider.h
+    qtquick/wtextureproviderprovider.h
 
     utils/wtools.h
     utils/wthreadutils.h
@@ -206,11 +222,15 @@ set(HEADERS
     utils/wimagebuffer.h
     utils/wcursorimage.h
     utils/WCursorImage
+    utils/wwrappointer.h
+    utils/WWrapPointer
 
     protocols/wxdgshell.h
     protocols/WXdgShell
     protocols/wxdgsurface.h
     protocols/WXdgSurface
+    protocols/wxdgtoplevelsurface.h
+    protocols/wxdgpopupsurface.h
     protocols/wlayersurface.h
     protocols/wxdgdecorationmanager.h
     protocols/WXdgDecorationManager
@@ -233,6 +253,7 @@ set(HEADERS
     protocols/WXWayland
     protocols/wxwaylandsurface.h
     protocols/WXWaylandSurface
+    protocols/wextforeigntoplevellistv1.h
 )
 
 set(PRIVATE_HEADERS

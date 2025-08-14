@@ -28,7 +28,7 @@ class WAYLIB_SERVER_EXPORT WXWaylandSurface : public WToplevelSurface
     Q_PROPERTY(bool bypassManager READ isBypassManager NOTIFY bypassManagerChanged FINAL)
     Q_PROPERTY(QRect geometry READ geometry NOTIFY geometryChanged FINAL)
     Q_PROPERTY(WindowTypes windowTypes READ windowTypes NOTIFY windowTypesChanged FINAL)
-    Q_PROPERTY(DecorationsType decorationsType READ decorationsType NOTIFY decorationsTypeChanged FINAL)
+    Q_PROPERTY(DecorationsFlags decorationsFlags READ decorationsFlags NOTIFY decorationsFlagsChanged FINAL)
     QML_NAMED_ELEMENT(XWaylandSurface)
     QML_UNCREATABLE("Only create in C++")
 
@@ -68,12 +68,13 @@ public:
     Q_ENUM(WindowType)
     Q_DECLARE_FLAGS(WindowTypes, WindowType)
 
-    enum DecorationsType {
+    enum DecorationsFlag {
         DecorationsAll = 0,
         DecorationsNoBorder = 1,
         DecorationsNoTitle = 2
     };
-    Q_ENUM(DecorationsType)
+    Q_ENUM(DecorationsFlag)
+    Q_DECLARE_FLAGS(DecorationsFlags, DecorationsFlag)
 
     explicit WXWaylandSurface(QW_NAMESPACE::qw_xwayland_surface *handle, WXWayland *xwayland, QObject *parent = nullptr);
     ~WXWaylandSurface();
@@ -94,7 +95,7 @@ public:
     bool isFullScreen() const override;
     bool isActivated() const override;
 
-    bool doesNotAcceptFocus() const override;
+    bool hasCapability(Capability cap) const override;
 
     QSize minSize() const override;
     QSize maxSize() const override;
@@ -111,17 +112,17 @@ public:
 
     bool isBypassManager() const;
     WindowTypes windowTypes() const;
-    DecorationsType decorationsType() const;
+    DecorationsFlags decorationsFlags() const;
 
 public Q_SLOTS:
-    bool checkNewSize(const QSize &size) override;
+    bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;
     void resize(const QSize &size) override;
     void configure(const QRect &geometry);
     void setMaximize(bool on) override;
     void setMinimize(bool on) override;
     void setFullScreen(bool on) override;
     void setActivate(bool on) override;
-    void close();
+    void close() override;
     void restack(WXWaylandSurface *sibling, StackMode mode);
 
 Q_SIGNALS:
@@ -132,7 +133,7 @@ Q_SIGNALS:
     void bypassManagerChanged();
     void geometryChanged();
     void windowTypesChanged();
-    void decorationsTypeChanged();
+    void decorationsFlagsChanged();
 
     void requestConfigure(QRect geometry, ConfigureFlags flags);
     void requestActivate();

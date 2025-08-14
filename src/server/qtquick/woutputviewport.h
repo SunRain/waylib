@@ -5,6 +5,7 @@
 
 #include <wglobal.h>
 #include <woutput.h>
+#include <wtextureproviderprovider.h>
 #include <qwglobal.h>
 
 #include <QQuickItem>
@@ -12,9 +13,9 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputViewportPrivate;
-class WBufferTextureProvider;
+class WSGTextureProvider;
 class WOutputLayer;
-class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem
+class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem, public virtual WTextureProviderProvider
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WOutputViewport)
@@ -44,7 +45,8 @@ public:
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
-    WBufferTextureProvider *wTextureProvider() const;
+    WSGTextureProvider *wTextureProvider() const override;
+    WOutputRenderWindow *outputRenderWindow() const override;
 
     QQuickItem *input() const;
     void setInput(QQuickItem *item);

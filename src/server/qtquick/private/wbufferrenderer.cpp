@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferrenderer_p.h"
-#include "wtexture.h"
 #include "wrenderhelper.h"
 #include "wqmlhelper_p.h"
 #include "wtools.h"
-#include "wbuffertextureprovider.h"
+#include "wsgtextureprovider.h"
 
 #include <qwbuffer.h>
 #include <qwtexture.h>
@@ -17,6 +16,7 @@
 #include <qwrendererinterface.h>
 
 #include <QSGImageNode>
+#include <QSGSimpleRectNode>
 
 #define protected public
 #define private public
@@ -34,6 +34,7 @@
 #include <private/qrhigles2_p.h>
 #include <private/qopenglcontext_p.h>
 #endif
+#include <private/qsgbatchrenderer_p.h>
 
 #include <pixman.h>
 #include <drm_fourcc.h>
@@ -99,104 +100,12 @@ static void applyTransform(QSGSoftwareRenderer *renderer, const QTransform &t)
     }
 }
 
-class Q_DECL_HIDDEN TextureProvider : public WBufferTextureProvider
-{
-public:
-    explicit TextureProvider(WBufferRenderer *item)
-        : item(item) {
-
-    }
-    ~TextureProvider() {
-        if (m_texture)
-            cleanTexture();
-    }
-
-    QSGTexture *texture() const override {
-        return m_texture ? &m_texture->texture : nullptr;
-    }
-
-    qw_texture *qwTexture() const override {
-        return m_texture ? m_texture->qwtexture : nullptr;
-    }
-
-    qw_buffer *qwBuffer() const override {
-        return m_texture ? m_texture->buffer : nullptr;
-    }
-
-    void setBuffer(qw_buffer *buffer) {
-        if (buffer && buffer == qwBuffer()) {
-            Q_EMIT textureChanged();
-            return;
-        }
-
-        if (m_texture)
-            cleanTexture();
-
-        Q_ASSERT(!m_texture);
-        if (buffer) {
-            Q_ASSERT(item);
-            m_texture = new Texture(item->window(), item->output()->renderer(), buffer);
-        }
-
-        Q_EMIT textureChanged();
-    }
-
-    void cleanTexture() {
-        Q_ASSERT(item);
-
-        class TextureCleanupJob : public QRunnable
-        {
-        public:
-            TextureCleanupJob(Texture *texture)
-                : texture(texture) { }
-            void run() override {
-                delete texture;
-            }
-            Texture *texture;
-        };
-
-        // Delay clean the textures on the next render after.
-        item->window()->scheduleRenderJob(new TextureCleanupJob(m_texture),
-                                          QQuickWindow::AfterSynchronizingStage);
-        m_texture = nullptr;
-    }
-
-    void invalidate() {
-        cleanTexture();
-        item = nullptr;
-
-        Q_EMIT textureChanged();
-    }
-
-    WBufferRenderer *item;
-
-    struct Texture {
-        Texture(QQuickWindow *window, qw_renderer *renderer, qw_buffer *buffer)
-        {
-            qwtexture = qw_texture::from_buffer(*renderer, *buffer);
-            this->buffer = buffer;
-            WTexture::makeTexture(qwtexture, &texture, window);
-            texture.setOwnsTexture(false);
-        }
-
-        ~Texture() {
-            delete qwtexture;
-        }
-
-        qw_texture *qwtexture;
-        qw_buffer *buffer;
-        QSGPlainTexture texture;
-    };
-
-    Texture *m_texture = nullptr;
-};
-
 WBufferRenderer::WBufferRenderer(QQuickItem *parent)
     : QQuickItem(parent)
-    , m_cacheBuffer(false)
+    , m_cacheBuffer(true)
     , m_hideSource(false)
 {
-    m_textureProvider.reset(new TextureProvider(this));
+
 }
 
 WBufferRenderer::~WBufferRenderer()
@@ -326,6 +235,17 @@ QSGRenderer *WBufferRenderer::currentRenderer() const
     return state.renderer;
 }
 
+QSGBatchRenderer::Renderer *WBufferRenderer::currentBatchRenderer() const
+{
+    Q_ASSERT(state.renderer == state.batchRenderer);
+    return state.batchRenderer;
+}
+
+qreal WBufferRenderer::currentDevicePixelRatio() const
+{
+    return state.devicePixelRatio;
+}
+
 const QMatrix4x4 &WBufferRenderer::currentWorldTransform() const
 {
     return state.worldTransform;
@@ -364,6 +284,23 @@ bool WBufferRenderer::isTextureProvider() const
 
 QSGTextureProvider *WBufferRenderer::textureProvider() const
 {
+    return wTextureProvider();
+}
+
+WSGTextureProvider *WBufferRenderer::wTextureProvider() const
+{
+    auto w = qobject_cast<WOutputRenderWindow*>(window());
+    auto d = QQuickItemPrivate::get(this);
+    if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
+        qWarning("WBufferRenderer::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
+        return nullptr;
+    }
+
+    if (!m_textureProvider) {
+        m_textureProvider.reset(new WSGTextureProvider(w));
+        m_textureProvider->setBuffer(m_lastBuffer);
+    }
+
     return m_textureProvider.get();
 }
 
@@ -394,19 +331,15 @@ QTransform WBufferRenderer::inputMapToOutput(const QRectF &sourceRect, const QRe
 }
 
 qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
-                                       uint32_t format, RenderFlags flags)
+                                        uint32_t format, RenderFlags flags)
 {
     Q_ASSERT(!state.buffer);
     Q_ASSERT(m_output);
-    Q_ASSERT(m_textureProvider);
 
     if (pixelSize.isEmpty())
         return nullptr;
 
     Q_EMIT beforeRendering();
-
-    m_damageRing.set_bounds(pixelSize.width(), pixelSize.height());
-    Q_ASSERT(m_textureProvider);
 
     // configure swapchain
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {
@@ -415,7 +348,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
             qWarning("wlr_renderer doesn't support format 0x%s", drmGetFormatName(format));
             return nullptr;
         }
-        Q_ASSERT(m_textureProvider);
 
         if (!m_swapchain || QSize(m_swapchain->handle()->width, m_swapchain->handle()->height) != pixelSize
             || m_swapchain->handle()->format.format != renderFormat->format) {
@@ -432,13 +364,10 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
                                                       !flags.testFlag(DontTestSwapchain));
         if (!ok)
             return nullptr;
-        Q_ASSERT(m_textureProvider);
-
     }
 
     // TODO: Support scanout buffer of wlr_surface(from WSurfaceItem)
-    int bufferAge;
-    auto wbuffer = m_swapchain->acquire(&bufferAge);
+    auto wbuffer = m_swapchain->acquire();
     if (!wbuffer)
         return nullptr;
     auto buffer = qw_buffer::from(wbuffer);
@@ -456,12 +385,24 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
         return nullptr;
     }
 
+    // For software renderer, update the dirty parts relative to the last paint device.
+    PixmanRegion damage;
+    m_damageRing.rotate_buffer(wbuffer, damage);
+    state.dirty = WTools::fromPixmanRegion(damage);
+
     auto rtd = QQuickRenderTargetPrivate::get(&rt);
     QSGRenderTarget sgRT;
 
     if (rtd->type == QQuickRenderTargetPrivate::Type::PaintDevice) {
         sgRT.paintDevice = rtd->u.paintDevice;
+
+        if (devicePixelRatio != 1.0) {
+            state.dirty = QTransform::fromScale(1.0 / devicePixelRatio,
+                                                1.0 / devicePixelRatio).map(state.dirty);
+        }
     } else {
+        state.dirty = QRegion();
+
         Q_ASSERT(rtd->type == QQuickRenderTargetPrivate::Type::RhiRenderTarget);
         sgRT.rt = rtd->u.rhiRt;
         sgRT.cb = wd->redirect.commandBuffer;
@@ -483,8 +424,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     state.context = wd->context;
     state.pixelSize = pixelSize;
     state.devicePixelRatio = devicePixelRatio;
-    state.bufferAge = bufferAge;
-    state.lastRT = lastRT;
     state.buffer = buffer;
     state.renderTarget = rt;
     state.sgRenderTarget = sgRT;
@@ -509,8 +448,29 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
 
     const qreal devicePixelRatio = state.devicePixelRatio;
     state.renderer = renderer;
+    state.batchRenderer = dynamic_cast<QSGBatchRenderer::Renderer*>(renderer);
     state.worldTransform = renderMatrix;
-    renderer->setDevicePixelRatio(devicePixelRatio);
+    // The renderer should always receive the window's DPR (Device Pixel Ratio)
+    // because, regardless of the DPR used for rendering, all resources within
+    // a window are loaded based on the window's own DPR.
+
+    // During rendering, certain specialized nodes (e.g., QSGCurveStrokeMaterialShader)
+    // use QSGRenderer::devicePixelRatio for specific calculations related to
+    // ShapePath::fillItem. When displaying this fillItem using Shape, it might
+    // be desirable for the QSGTexture provided by fillItem to scale completely
+    // to match the size of the Shape, regardless of its original size.
+
+    // If a PathRectangle is used, its width is set to
+    // textureSize.width / QQuickWindow::effectiveDevicePixelRatio. Here, the
+    // devicePixelRatio value is utilized because the width and height passed
+    // to PathRectangle need to be converted from pixel values to pixel-independent sizes.
+
+    // Returning to the issue mentioned earlier, QSGCurveStrokeMaterialShader
+    // uses QSGRenderer::devicePixelRatio for additional calculations that influence
+    // how Shape fills the QSGTexture provided by fillItem. Therefore, we need to ensure
+    // that QSGRenderer::devicePixelRatio and QQuickWindow::effectiveDevicePixelRatio
+    // are always consistent. Otherwise, some Items might render incorrectly.
+    renderer->setDevicePixelRatio(window()->effectiveDevicePixelRatio());
     renderer->setDeviceRect(QRect(QPoint(0, 0), state.pixelSize));
     renderer->setRenderTarget(state.sgRenderTarget);
     const auto viewportRect = scaleToRect(targetRect, devicePixelRatio);
@@ -518,6 +478,23 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(renderer);
     { // before render
         if (softwareRenderer) {
+            // Avoid do clear before paint, for the software renderer this
+            // work is expensive.
+            if (m_clearColor.alpha() == 0)
+                preserveColorContents = true;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+            softwareRenderer->setClearColorEnabled(!preserveColorContents);
+#else
+            auto bn = softwareRenderer->renderableNode(softwareRenderer->m_background);
+            if (bn) {
+                bn->m_opacity = preserveColorContents ? 0 : 1;
+            }
+#endif
+            if (!state.dirty.isEmpty()) {
+                softwareRenderer->m_dirtyRegion += state.dirty;
+                state.dirty = QRegion();
+            }
+
             // because software renderer don't supports viewportRect,
             // so use transform to simulation.
             const auto mapTransform = inputMapToOutput(sourceRect, targetRect,
@@ -613,6 +590,8 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             // drawing result is available for use.
             wd->rhi->finish();
         } else {
+            state.dirty = softwareRenderer->flushRegion();
+
             auto currentImage = getImageFrom(state.renderTarget);
             Q_ASSERT(currentImage && currentImage == softwareRenderer->m_rt.paintDevice);
             currentImage->setDevicePixelRatio(1.0);
@@ -623,9 +602,6 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             Q_ASSERT(ok);
 
             {
-                PixmanRegion damage;
-                m_damageRing.get_buffer_damage(state.bufferAge, damage);
-
                 if (viewportRect.isValid()) {
                     QRect imageRect = (currentImage->operator const QImage &()).rect();
                     QRegion invalidRegion(imageRect);
@@ -637,28 +613,6 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                         QPainter pa(currentImage);
                         for (const auto r : std::as_const(invalidRegion))
                             pa.fillRect(r, softwareRenderer->clearColor());
-                    }
-                }
-
-                if (!damage.isEmpty() && state.lastRT.first != state.buffer && !state.lastRT.second.isNull()) {
-                    auto image = getImageFrom(state.lastRT.second);
-                    Q_ASSERT(image);
-                    Q_ASSERT(image->size() == state.pixelSize);
-
-                    // TODO: Don't use the previous render target, we can get the damage region of QtQuick
-                    // before QQuickRenderControl::render for qw_damage_ring, and add dirty region to
-                    // QSGAbstractSoftwareRenderer to force repaint the damage region of current render target.
-                    QPainter pa(currentImage);
-
-                    PixmanRegion remainderDamage;
-                    ok = pixman_region32_subtract(remainderDamage, damage, scaledFlushDamage);
-                    Q_ASSERT(ok);
-
-                    int count = 0;
-                    auto rects = pixman_region32_rectangles(remainderDamage, &count);
-                    for (int i = 0; i < count; ++i) {
-                        auto r = rects[i];
-                        pa.drawImage(r.x1, r.y1, *image, r.x1, r.y1, r.x2 - r.x1, r.y2 - r.y1);
                     }
                 }
             }
@@ -675,7 +629,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     }
 
     if (shouldCacheBuffer())
-        m_textureProvider->setBuffer(state.buffer);
+        wTextureProvider()->setBuffer(state.buffer);
 }
 
 void WBufferRenderer::endRender()
@@ -684,10 +638,9 @@ void WBufferRenderer::endRender()
     auto buffer = state.buffer;
     state.buffer = nullptr;
     state.renderer = nullptr;
+    state.batchRenderer = nullptr;
 
     m_lastBuffer = buffer;
-    m_damageRing.rotate();
-    m_swapchain->set_buffer_submitted(*buffer);
     buffer->unlock();
 
 #ifndef QT_NO_OPENGL
@@ -791,7 +744,9 @@ void WBufferRenderer::removeSource(int index)
     if (isRootItem(s.source))
         return;
 
-    s.renderer->deleteLater();
+    // Renderer of source is delay initialized in ensureRenderer. It might be null here.
+    if (s.renderer)
+        s.renderer->deleteLater();
     auto d = QQuickItemPrivate::get(s.source);
     if (d->inDestructor)
         return;

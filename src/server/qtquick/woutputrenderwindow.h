@@ -53,6 +53,7 @@ public:
     qreal width() const;
     qreal height() const;
     WBufferRenderer *currentRenderer() const;
+    bool inRendering() const;
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
 
@@ -67,6 +68,7 @@ public Q_SLOTS:
     void update(WOutputViewport *output);
     void setWidth(qreal arg);
     void setHeight(qreal arg);
+    void markItemClipRectDirty(QQuickItem *item);
 
 Q_SIGNALS:
     void widthChanged();
@@ -74,12 +76,15 @@ Q_SIGNALS:
     void outputViewportInitialized(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
     void initialized();
     void disableLayersChanged();
+    void renderEnd();
+    void effectiveDevicePixelRatioChanged(qreal scale);
 
 private:
     void classBegin() override;
     void componentComplete() override;
 
     bool event(QEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     friend class WOutputViewport;
     QList<WOutputLayer*> layers(const WOutputViewport *output) const;

@@ -63,9 +63,14 @@ public:
 
 void WXWaylandSurfacePrivate::instantRelease()
 {
+    W_Q(WXWaylandSurface);
     handle()->set_data(nullptr, nullptr);
-    if (surface)
-        surface->removeAttachedData<WXWaylandSurface>();
+    handle()->disconnect(q);
+
+    if (!surface)
+        return;
+    surface->safeDeleteLater();
+    surface = nullptr;
 }
 
 void WXWaylandSurfacePrivate::init()
@@ -139,7 +144,7 @@ void WXWaylandSurfacePrivate::init()
                          updateWindowTypes();
                      });
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_decorations,
-                     q, &WXWaylandSurface::decorationsTypeChanged);
+                     q, &WXWaylandSurface::decorationsFlagsChanged);
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_title,
                      q, &WXWaylandSurface::titleChanged);
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_class,
@@ -178,7 +183,7 @@ void WXWaylandSurfacePrivate::updateParent()
     if (parent == newParent)
         return;
 
-    const bool hasParentChanged = parent == nullptr || newParent == nullptr;
+    const bool hasParentChanged = (parent == nullptr) != (newParent == nullptr);
     if (parent)
         parent->d_func()->updateChildren();
     parent = newParent;
@@ -199,34 +204,34 @@ void WXWaylandSurfacePrivate::updateWindowTypes()
 
     for (int i = 0; i < nativeHandle()->window_type_len; ++i) {
         switch (xwayland->atomType(nativeHandle()->window_type[i])) {
-        case WXWayland::NET_WM_WINDOW_TYPE_NORMAL:
+        case WXWayland::_NET_WM_WINDOW_TYPE_NORMAL:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_NORMAL;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_UTILITY:
+        case WXWayland::_NET_WM_WINDOW_TYPE_UTILITY:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_UTILITY;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_TOOLTIP:
+        case WXWayland::_NET_WM_WINDOW_TYPE_TOOLTIP:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_TOOLTIP;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_DND:
+        case WXWayland::_NET_WM_WINDOW_TYPE_DND:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_DND;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_DROPDOWN_MENU:
+        case WXWayland::_NET_WM_WINDOW_TYPE_DROPDOWN_MENU:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_DROPDOWN_MENU;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_POPUP_MENU:
+        case WXWayland::_NET_WM_WINDOW_TYPE_POPUP_MENU:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_POPUP_MENU;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_COMBO:
+        case WXWayland::_NET_WM_WINDOW_TYPE_COMBO:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_COMBO;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_MENU:
+        case WXWayland::_NET_WM_WINDOW_TYPE_MENU:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_MENU;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_NOTIFICATION:
+        case WXWayland::_NET_WM_WINDOW_TYPE_NOTIFICATION:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_NOTIFICATION;
             break;
-        case WXWayland::NET_WM_WINDOW_TYPE_SPLASH:
+        case WXWayland::_NET_WM_WINDOW_TYPE_SPLASH:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_SPLASH;
             break;
         default:
@@ -333,12 +338,24 @@ bool WXWaylandSurface::isActivated() const
     return d->activated;
 }
 
-bool WXWaylandSurface::doesNotAcceptFocus() const
+bool WXWaylandSurface::hasCapability(Capability cap) const
 {
     W_DC(WXWaylandSurface);
-
-    return !wlr_xwayland_or_surface_wants_focus(d->nativeHandle())
-           || wlr_xwayland_icccm_input_model(d->nativeHandle()) == WLR_ICCCM_INPUT_MODEL_NONE;
+    switch (cap) {
+        using enum Capability;
+    case Focus:
+        return wlr_xwayland_surface_override_redirect_wants_focus(d->nativeHandle())
+            && wlr_xwayland_surface_icccm_input_model(d->nativeHandle()) != WLR_ICCCM_INPUT_MODEL_NONE;
+    case Activate:
+    case Maximized:
+    case FullScreen:
+    case Resize:
+        // TODO: should check WindowType
+        return !isBypassManager();
+    default:
+        break;
+    }
+    Q_UNREACHABLE();
 }
 
 QSize WXWaylandSurface::minSize() const
@@ -396,8 +413,9 @@ QString WXWaylandSurface::title() const
 QString WXWaylandSurface::appId() const
 {
     W_DC(WXWaylandSurface);
-
-    return QString::fromLocal8Bit(d->nativeHandle()->_class);
+    // https://www.x.org/releases/X11R7.7/doc/xproto/x11protocol.html#requests:InternAtom
+    // The string should use the ISO Latin-1 encoding.
+    return QString::fromLatin1(d->nativeHandle()->instance);
 }
 
 pid_t WXWaylandSurface::pid() const
@@ -442,32 +460,43 @@ WXWaylandSurface::WindowTypes WXWaylandSurface::windowTypes() const
     return d->windowTypes;
 }
 
-WXWaylandSurface::DecorationsType WXWaylandSurface::decorationsType() const
+WXWaylandSurface::DecorationsFlags WXWaylandSurface::decorationsFlags() const
 {
     W_DC(WXWaylandSurface);
-    return static_cast<DecorationsType>(d->nativeHandle()->decorations);
+    return WXWaylandSurface::DecorationsFlags::fromInt(d->nativeHandle()->decorations);
 }
 
-bool WXWaylandSurface::checkNewSize(const QSize &size)
+bool WXWaylandSurface::checkNewSize(const QSize &size, QSize *clipedSize)
 {
     const QSize minSize = this->minSize();
     const QSize maxSize = this->maxSize();
 
-    if (minSize.isValid()) {
-        if (size.width() < minSize.width())
-            return false;
-        if (size.height() < minSize.height())
-            return false;
+    bool ok = true;
+    if (clipedSize)
+        *clipedSize = size;
+
+    if (size.width() < minSize.width()) {
+        if (clipedSize)
+            clipedSize->setWidth(minSize.width());
+        ok = false;
+    }
+    if (size.height() < minSize.height()) {
+        if (clipedSize)
+            clipedSize->setHeight(minSize.height());
+        ok = false;
+    }
+    if (size.width() > maxSize.width() && maxSize.width() > 0) {
+        if (clipedSize)
+            clipedSize->setWidth(maxSize.width());
+        ok = false;
+    }
+    if (size.height() > maxSize.height() && maxSize.height() > 0) {
+        if (clipedSize)
+            clipedSize->setHeight(maxSize.height());
+        ok = false;
     }
 
-    if (maxSize.isValid()) {
-        if (size.width() > maxSize.width())
-            return false;
-        if (size.height() > maxSize.height())
-            return false;
-    }
-
-    return true;
+    return ok;
 }
 
 void WXWaylandSurface::resize(const QSize &size)
@@ -489,7 +518,7 @@ void WXWaylandSurface::setMaximize(bool on)
         return;
 
     d->maximized = on;
-    handle()->set_maximized(on);
+    handle()->set_maximized(on, on);
     Q_EMIT maximizeChanged();
 }
 
@@ -536,7 +565,12 @@ void WXWaylandSurface::close()
 
 void WXWaylandSurface::restack(WXWaylandSurface *sibling, StackMode mode)
 {
-    handle()->restack(*sibling->handle(), static_cast<xcb_stack_mode_t>(mode));
+    if (sibling) {
+        handle()->restack(*sibling->handle(), static_cast<xcb_stack_mode_t>(mode));
+        return;
+    }
+
+    handle()->restack(nullptr, static_cast<xcb_stack_mode_t>(mode));
 }
 
 WAYLIB_SERVER_END_NAMESPACE

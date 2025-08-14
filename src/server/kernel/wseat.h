@@ -21,10 +21,12 @@ QT_BEGIN_NAMESPACE
 class QInputEvent;
 class QWindow;
 class QPointingDevice;
+class QQuickItem;
 QT_END_NAMESPACE
 
-typedef uint wlr_axis_source_t;
-typedef uint wlr_button_state_t;
+typedef uint wl_pointer_axis_source_t;
+typedef uint wl_pointer_axis_relative_direction_t;
+typedef uint wl_pointer_button_state_t;
 struct wlr_seat;
 struct wlr_seat_client;
 
@@ -57,6 +59,7 @@ class WAYLIB_SERVER_EXPORT WSeat : public WWrapObject, public WServerInterface
     W_DECLARE_PRIVATE(WSeat)
     Q_PROPERTY(WInputDevice* keyboard READ keyboard WRITE setKeyboard NOTIFY keyboardChanged FINAL)
     Q_PROPERTY(WSurface* keyboardFocus READ keyboardFocusSurface WRITE setKeyboardFocusSurface NOTIFY keyboardFocusSurfaceChanged FINAL)
+    Q_PROPERTY(bool alwaysUpdateHoverTarget READ alwaysUpdateHoverTarget WRITE setAlwaysUpdateHoverTarget NOTIFY alwaysUpdateHoverTargetChanged FINAL)
 
 public:
     WSeat(const QString &name = QStringLiteral("seat0"));
@@ -99,12 +102,16 @@ public:
     WInputDevice *keyboard() const;
     void setKeyboard(WInputDevice *newKeyboard);
 
+    bool alwaysUpdateHoverTarget() const;
+    void setAlwaysUpdateHoverTarget(bool newIgnoreSurfacePointerEventExclusiveGrabber);
+
 Q_SIGNALS:
     void keyboardChanged();
     void keyboardFocusSurfaceChanged();
     void requestCursorShape(WAYLIB_SERVER_NAMESPACE::WGlobal::CursorShape shape);
     void requestCursorSurface(WAYLIB_SERVER_NAMESPACE::WSurface *surface, const QPoint &hotspot);
     void requestDrag(WAYLIB_SERVER_NAMESPACE::WSurface *surface);
+    void alwaysUpdateHoverTargetChanged();
 
 protected:
     using QObject::eventFilter;
@@ -114,6 +121,7 @@ protected:
     friend class QWlrootsRenderWindow;
     friend class WEventJunkman;
     friend class WCursorShapeManagerV1;
+    friend class WOutputRenderWindow;
 
     void create(WServer *server) override;
     void destroy(WServer *server) override;
@@ -122,16 +130,17 @@ protected:
 
     // for event filter
     bool filterEventBeforeDisposeStage(QWindow *targetWindow, QInputEvent *event);
+    bool filterEventBeforeDisposeStage(QQuickItem *target, QInputEvent *event);
     bool filterEventAfterDisposeStage(QWindow *targetWindow, QInputEvent *event);
     bool filterUnacceptedEvent(QWindow *targetWindow, QInputEvent *event);
 
     // pointer
     void notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp);
     void notifyButton(WCursor *cursor, WInputDevice *device,
-                      Qt::MouseButton button, wlr_button_state_t state,
+                      Qt::MouseButton button, wl_pointer_button_state_t state,
                       uint32_t timestamp);
-    void notifyAxis(WCursor *cursor, WInputDevice *device, wlr_axis_source_t source,
-                    Qt::Orientation orientation,
+    void notifyAxis(WCursor *cursor, WInputDevice *device, wl_pointer_axis_source_t source,
+                    Qt::Orientation orientation, wl_pointer_axis_relative_direction_t rd,
                     double delta, int32_t delta_discrete, uint32_t timestamp);
     void notifyFrame(WCursor *cursor);
 

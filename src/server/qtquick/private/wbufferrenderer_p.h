@@ -19,6 +19,9 @@ Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 QT_BEGIN_NAMESPACE
 class QSGPlainTexture;
 class QSGRenderContext;
+namespace QSGBatchRenderer {
+class Renderer;
+}
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -31,7 +34,7 @@ struct wlr_swapchain;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WRenderHelper;
-class TextureProvider;
+class WSGTextureProvider;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;
@@ -68,6 +71,8 @@ public:
     void setClearColor(const QColor &clearColor);
 
     QSGRenderer *currentRenderer() const;
+    QSGBatchRenderer::Renderer *currentBatchRenderer() const;
+    qreal currentDevicePixelRatio() const;
     const QMatrix4x4 &currentWorldTransform() const;
     QW_NAMESPACE::qw_buffer *currentBuffer() const;
     QW_NAMESPACE::qw_buffer *lastBuffer() const;
@@ -77,6 +82,7 @@ public:
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
+    WSGTextureProvider *wTextureProvider() const;
 
     static QTransform inputMapToOutput(const QRectF &sourceRect, const QRectF &targetRect,
                                        const QSize &pixelSize, const qreal devicePixelRatio);
@@ -131,14 +137,14 @@ private:
         RenderFlags flags;
         QSGRenderContext *context;
         QSGRenderer *renderer;
+        QSGBatchRenderer::Renderer *batchRenderer;
         QMatrix4x4 worldTransform;
         QSize pixelSize;
         qreal devicePixelRatio;
-        int bufferAge;
-        std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRT;
         QW_NAMESPACE::qw_buffer *buffer = nullptr;
         QQuickRenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
+        QRegion dirty;
     } state;
 
     QPointer<WOutput> m_output;
@@ -150,7 +156,7 @@ private:
 
     QList<Data> m_sourceList;
     QW_NAMESPACE::qw_damage_ring m_damageRing;
-    std::unique_ptr<TextureProvider> m_textureProvider;
+    mutable std::unique_ptr<WSGTextureProvider> m_textureProvider;
     QColor m_clearColor = Qt::transparent;
     QList<QObject*> m_cacheBufferLocker;
 

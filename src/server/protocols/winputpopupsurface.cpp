@@ -5,8 +5,10 @@
 
 #include "private/wtoplevelsurface_p.h"
 #include "wsurface.h"
+
 #include <qwcompositor.h>
 #include <qwinputmethodv2.h>
+#include <qwbox.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -30,6 +32,10 @@ public:
         return {handle()->handle()->surface->current.width, handle()->handle()->surface->current.height};
     }
 
+    wl_client *waylandClient() const override {
+        return nativeHandle()->resource->client;
+    }
+
     WSurface *const parent;
     QRect cursorRect;
 };
@@ -38,9 +44,21 @@ WInputPopupSurface::WInputPopupSurface(qw_input_popup_surface_v2 *surface, WSurf
     : WToplevelSurface(*new WInputPopupSurfacePrivate(surface, parentSurface, this), parent)
 { }
 
-bool WInputPopupSurface::doesNotAcceptFocus() const
+bool WInputPopupSurface::hasCapability(Capability cap) const
 {
-    return true;
+    W_DC(WInputPopupSurface);
+    switch (cap) {
+        using enum Capability;
+    case Focus:
+    case Activate:
+    case Maximized:
+    case FullScreen:
+    case Resize:
+        return false;
+    default:
+        break;
+    }
+    Q_UNREACHABLE();
 }
 
 WSurface *WInputPopupSurface::surface() const
@@ -73,9 +91,9 @@ WSurface *WInputPopupSurface::parentSurface() const
     return d_func()->parent;
 }
 
-bool WInputPopupSurface::checkNewSize(const QSize &size)
+bool WInputPopupSurface::checkNewSize(const QSize &, QSize *)
 {
-    return size == d_func()->size();
+    return false;
 }
 
 QRect WInputPopupSurface::cursorRect() const

@@ -641,8 +641,11 @@ void WRenderHelper::setupRendererBackend(qw_backend *testBackend)
     const auto wlrRenderer = qgetenv("WLR_RENDERER");
 
     if (wlrRenderer == "auto" || wlrRenderer.isEmpty()) {
-        if (qEnvironmentVariableIsSet("QSG_RHI_BACKEND")) {
-            // when environment variable QSG_RHI_BACKEND was set, don't call setGraphicsApi
+        if (qEnvironmentVariableIsSet("QSG_RHI_BACKEND")
+            || (qEnvironmentVariableIsSet("QT_QUICK_BACKEND")
+                && qgetenv("QT_QUICK_BACKEND") != "rhi")) {
+            // when environment variable Q*_BACKEND was set, should defer to
+            // the env variable for the graphics API.
             return;
         }
 
@@ -654,7 +657,7 @@ void WRenderHelper::setupRendererBackend(qw_backend *testBackend)
         std::unique_ptr<qw_display> display { nullptr };
         if (!testBackend) {
             display.reset(new qw_display());
-            testBackend = qw_backend::autocreate(*display.get(), nullptr);
+            testBackend = qw_backend::autocreate(display->get_event_loop(), nullptr);
 
             if (!testBackend)
                 qFatal("Failed to create wlr_backend");
@@ -688,7 +691,7 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
             continue;
         }
 
-        const auto *formats = renderer->get_dmabuf_texture_formats();
+        const wlr_drm_format_set *formats = wlr_renderer_get_texture_formats(*renderer, WLR_BUFFER_CAP_DMABUF);
 
         if (formats && formats->len == 0) {
             qInfo() << GraphicsApiName(api) << " api don't support any format";
@@ -704,7 +707,7 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
                 auto *format = &formats->formats[formatId];
 
                 std::unique_ptr<qw_swapchain> swapchain(qw_swapchain::create(*alloc.get(), 1000, 800, format));
-                auto wbuffer = swapchain->acquire(nullptr);
+                auto wbuffer = swapchain->acquire();
                 if (!wbuffer) {
                     continue;
                 } else {
@@ -730,6 +733,80 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
     return acceptApi;
 }
 
+static void updateGLTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *texture) {
+    wlr_gles2_texture_attribs attribs;
+    wlr_gles2_texture_get_attribs(handle->handle(), &attribs);
+    QSize size(handle->handle()->width, handle->handle()->height);
+
+#define GL_TEXTURE_EXTERNAL_OES           0x8D65
+    QQuickWindowPrivate::TextureFromNativeTextureFlags flags = attribs.target == GL_TEXTURE_EXTERNAL_OES
+                                                                   ? QQuickWindowPrivate::NativeTextureIsExternalOES
+                                                                   : QQuickWindowPrivate::TextureFromNativeTextureFlags {};
+    texture->setTextureFromNativeTexture(rhi, attribs.tex, 0, 0, size, {}, flags);
+
+    texture->setHasAlphaChannel(attribs.has_alpha);
+    texture->setTextureSize(size);
+}
+
+static inline quint64 vkimage_cast(void *image) {
+    return reinterpret_cast<quintptr>(image);
+}
+
+static inline quint64 vkimage_cast(quint64 image) {
+    return image;
+}
+
+#ifdef ENABLE_VULKAN_RENDER
+static void updateVKTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *texture) {
+    wlr_vk_image_attribs attribs;
+    wlr_vk_texture_get_image_attribs(handle->handle(), &attribs);
+    QSize size(handle->handle()->width, handle->handle()->height);
+
+    texture->setTextureFromNativeTexture(rhi,
+                                         vkimage_cast(attribs.image),
+                                         attribs.layout, attribs.format, size,
+                                         {}, {});
+    texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(handle->handle()));
+    texture->setTextureSize(size);
+}
+#endif
+
+static void updateImage(QRhi *, qw_texture *handle, QSGPlainTexture *texture) {
+    auto image = wlr_pixman_texture_get_image(handle->handle());
+    texture->setImage(WTools::fromPixmanImage(image));
+}
+
+typedef void(*UpdateTextureFunction)(QRhi *, qw_texture *, QSGPlainTexture *);
+
+static UpdateTextureFunction getUpdateTextFunction(qw_texture *handle)
+{
+    const auto api = WRenderHelper::getGraphicsApi();
+    if (api == QSGRendererInterface::OpenGL) {
+        Q_ASSERT(wlr_texture_is_gles2(handle->handle()));
+        return updateGLTexture;
+    }
+#ifdef ENABLE_VULKAN_RENDER
+    else if (api == QSGRendererInterface::Vulkan) {
+        Q_ASSERT(wlr_texture_is_vk(handle->handle()));
+        return updateVKTexture;
+    }
+#endif
+    else if (api == QSGRendererInterface::Software) {
+        Q_ASSERT(wlr_texture_is_pixman(handle->handle()));
+        return updateImage;
+    }
+
+    return nullptr;
+}
+
+bool WRenderHelper::makeTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *texture)
+{
+    auto updateTexture = getUpdateTextFunction(handle);
+    if (Q_UNLIKELY(!updateTexture))
+        return false;
+    updateTexture(rhi, handle, texture);
+    return true;
+}
 
 WAYLIB_SERVER_END_NAMESPACE
 

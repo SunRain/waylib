@@ -11,6 +11,7 @@ extern "C" {
 
 #include <qcolorspace.h>
 #include <QDebug>
+#include <QQuickItem>
 
 #include <pixman.h>
 #include <drm_fourcc.h>
@@ -129,6 +130,8 @@ QImage::Format WTools::toImageFormat(uint32_t drmFormat)
         return QImage::Format_ARGB32_Premultiplied;
     case DRM_FORMAT_RGBA8888:
         return QImage::Format_RGBA8888;
+    case DRM_FORMAT_ABGR8888:
+        return QImage::Format_RGBA8888_Premultiplied;
     case DRM_FORMAT_XRGB2101010:
         return QImage::Format_RGB30;
     case DRM_FORMAT_BGRX1010102:
@@ -170,6 +173,8 @@ uint32_t WTools::toDrmFormat(QImage::Format format)
         return DRM_FORMAT_ARGB8888;
     case QImage::Format_RGBA8888:
         return DRM_FORMAT_RGBA8888;
+    case QImage::Format_RGBA8888_Premultiplied:
+        return DRM_FORMAT_ABGR8888;
     case QImage::Format_RGB30:
         return DRM_FORMAT_XRGB2101010;
     case QImage::Format_BGR30:
@@ -202,6 +207,30 @@ QImage::Format WTools::convertToDrmSupportedFormat(QImage::Format format)
     }
 
     return format;
+}
+
+uint32_t WTools::shmToDrmFormat(wl_shm_format_t shmFmt)
+{
+    switch (shmFmt) {
+    case WL_SHM_FORMAT_XRGB8888:
+        return DRM_FORMAT_XRGB8888;
+    case WL_SHM_FORMAT_ARGB8888:
+        return DRM_FORMAT_ARGB8888;
+    default:
+        return static_cast<uint32_t>(shmFmt);
+    }
+}
+
+wl_shm_format_t WTools::drmToShmFormat(uint32_t drmFmt)
+{
+    switch (drmFmt) {
+    case DRM_FORMAT_XRGB8888:
+        return WL_SHM_FORMAT_XRGB8888;
+    case DRM_FORMAT_ARGB8888:
+        return WL_SHM_FORMAT_ARGB8888;
+    default:
+        return static_cast<wl_shm_format>(drmFmt);
+    }
 }
 
 QRegion WTools::fromPixmanRegion(pixman_region32 *region)
