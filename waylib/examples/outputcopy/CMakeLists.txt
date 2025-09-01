@@ -42,7 +42,7 @@ target_link_libraries(outputcopy
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    waylibserver
+    Waylib::SharedServer
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )

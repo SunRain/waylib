@@ -1,7 +1,7 @@
 set(TARGET waylibserver)
 
 set(WAYLIB_CMAKE_INSTALL_DIR
-    "${CMAKE_INSTALL_LIBDIR}/cmake/WaylibServer"
+    "${CMAKE_INSTALL_LIBDIR}/cmake/WaylibSharedServer"
     CACHE STRING "Install directory for waylib cmake files"
 )
 set(WAYLIB_INCLUDE_INSTALL_DIR
@@ -288,7 +288,7 @@ add_library(${TARGET}
     ${SOURCES}
 )
 
-add_library(Waylib::WaylibServer ALIAS ${TARGET})
+add_library(Waylib::SharedServer ALIAS ${TARGET})
 
 qt_add_qml_module(${TARGET}
     URI Waylib.Server
@@ -310,7 +310,7 @@ set_target_properties(${TARGET}
     PROPERTIES
         VERSION ${CMAKE_PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
-        EXPORT_NAME WaylibServer
+        EXPORT_NAME SharedServer
         PUBLIC_HEADER "${HEADERS}"
 	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
 	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
@@ -372,7 +372,7 @@ endif()
 
 install(TARGETS ${TARGET}
     EXPORT
-        WaylibServerTargets
+        WaylibSharedServerTargets
     LIBRARY
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER
@@ -381,26 +381,26 @@ install(TARGETS ${TARGET}
 )
 
 configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibServerConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibSharedServerConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake"
     INSTALL_DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
 )
 
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake"
-    VERSION ${DTK_VERSION}
+    "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMinorVersion
 )
 
 install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfigVersion.cmake
     DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
 )
 
 install(
-    EXPORT WaylibServerTargets
-    FILE WaylibServerTargets.cmake
+    EXPORT WaylibSharedServerTargets
+    FILE WaylibSharedServerTargets.cmake
     DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
     NAMESPACE Waylib::
 )
