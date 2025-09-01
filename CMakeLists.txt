@@ -25,7 +25,7 @@ add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/saniti
 option(BUILD_TREELAND_EXAMPLES "Build clients demo to test treeland" OFF)
 add_feature_info(DemoClents BUILD_TEST_CLIENTS "clients demo for testing")
 
-option(DISABLE_DDM "Disable DDM and greeter" OFF)
+option(DISABLE_DDM "Disable DDM and greeter" ON)
 
 if (DISABLE_DDM)
     add_compile_definitions("DISABLE_DDM")
@@ -94,9 +94,9 @@ set(PROJECT_RESOURCES_DIR "${CMAKE_SOURCE_DIR}/misc")
 
 enable_testing(true)
 
-add_subdirectory(src)
-add_subdirectory(misc)
-add_subdirectory(tests)
+# add_subdirectory(src)
+# add_subdirectory(misc)
+# add_subdirectory(tests)
 
 if (BUILD_TREELAND_EXAMPLES)
     add_subdirectory(examples)
