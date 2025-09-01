@@ -1,25 +1,25 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: waylib
+Upstream-Name: waylib-shared
 Upstream-Contact: JiDe Zhang <zccrs@live.com>
-Source: https://github.com/vioken/waylib
+Source: https://github.com/vioken/waylib-shared
 
 # ci
-Files: .github/* .obs/*.yml renovate.json
+Files: .github/* .obs/*.yml renovate.json garnix.yaml
 Copyright: None
 License: CC0-1.0
 
-# gitignore
-Files: .gitignore .gitmodules
+# Project files and git configuration  
+Files: *.cmake *CMakeLists.txt *.pc.in *cmake.in .gitignore .cursorindexingignore .cursor/rules/*.mdc .gitmodules
 Copyright: None
 License: CC0-1.0
 
-# Project file
-Files: *.cmake *CMakeLists.txt *.pc.in *cmake.in
+# Simple header files, only used to include qwinputdevice.h
+Files: */qwkeyboard.h */qwpointer.h */qwswitch.h */qwtablet.h */qwtabletpad.h */qwtouch.h
 Copyright: None
 License: CC0-1.0
 
-# README
-Files: README.md README.zh_CN.md
+# README and documentation
+Files: README.md README.zh_CN.md doc/ai/*.md
 Copyright: JiDe Zhang
 License: CC-BY-4.0
 
@@ -28,17 +28,17 @@ Files: *.nix .envrc flake.lock
 Copyright: None
 License: CC0-1.0
 
-# Debian package
+# Debian packages
 Files: debian/*
-Copyright: None
-License: CC0-1.0
+Copyright: 2023 rewine <luhongxu@outlook.com>
+License: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 # C++ pch files
 Files: src/server/pch/pch.hxx
 Copyright: None
 License: CC0-1.0
 
-#
+# Waylib server components
 Files: examples/tinywl/qml.qrc
        tests/manual/cursor/cursor.qrc
        src/server/kernel/WBackend
@@ -67,7 +67,8 @@ Files: examples/tinywl/qml.qrc
 Copyright: JiDe Zhang
 License: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-files: src/server/protocols/WCursorShapeManagerV1
+# Waylib protocol implementations
+Files: src/server/protocols/WCursorShapeManagerV1
        src/server/protocols/WForeignToplevel
        src/server/protocols/WInputMethodHelper
        src/server/protocols/WLayerSurface
@@ -83,7 +84,7 @@ files: src/server/protocols/WCursorShapeManagerV1
 Copyright: UnionTech Software Technology Co., Ltd.
 License: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-# Misc
+# Misc resources
 Files: tests/manual/cursor/res/HandCursor.png
        examples/tinywl/res/xx.jpg
 Copyright: None
