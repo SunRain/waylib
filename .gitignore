@@ -10,7 +10,6 @@
 *.dll
 *.dylib
 
-
 # Qt-es
 object_script.*.Release
 object_script.*.Debug
@@ -38,6 +37,7 @@ target_wrapper.*
 
 # QtCreator
 *.autosave
+.qmlls.ini
 
 # QtCreator Qml
 *.qmlproject.user
@@ -55,6 +55,10 @@ compile_commands.json
 # Build directories
 build*/
 *.DS_Store
+*.user
+
+# cmake
+CMakeLists.txt.user
 
 # nix
 .direnv/
@@ -64,9 +68,23 @@ result-*
 # clangd
 .cache/
 
+# ccls
+.ccls-cache
+
 # vscode
 .vscode/
 qwlroots.code-workspace
 
-# cursor
+# dpkg-buildpackage
+debian/.debhelper/
+debian/tmp/
+debian/treeland*/
+debian/debhelper-build-stamp
+debian/files
+debian/*.substvars
+debian/*.debhelper.log
+obj-*-linux-gnu/
+
+# ai/cursor
+.cursor
 .specstory
