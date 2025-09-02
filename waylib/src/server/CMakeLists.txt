@@ -291,7 +291,7 @@ add_library(${TARGET}
 add_library(Waylib::SharedServer ALIAS ${TARGET})
 
 qt_add_qml_module(${TARGET}
-    URI Waylib.Server
+    URI Waylib.QuickSharedServer
     VERSION "1.0" # Qt bug: The major version must be larger than 0
     OUTPUT_DIRECTORY "Waylib/Server"
     SOURCES

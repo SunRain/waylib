@@ -5,7 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Effects
-import Waylib.Server
+import Waylib.QuickSharedServer
 import Live
 
 Item {

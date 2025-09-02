@@ -3,7 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
-import Waylib.Server
+import Waylib.QuickSharedServer
 import Tinywl
 
 OutputItem {
