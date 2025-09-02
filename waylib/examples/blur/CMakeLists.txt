@@ -40,7 +40,7 @@ target_link_libraries(blur
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    Waylib::SharedServer
+    Waylib::QuickSharedServer
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )

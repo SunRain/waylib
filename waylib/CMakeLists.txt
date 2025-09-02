@@ -28,6 +28,24 @@ find_package(
   Qt6
   COMPONENTS ${QT_COMPONENTS}
   REQUIRED)
+
+# 查找ECM (Extra CMake Modules) - 在Qt之后查找以避免冲突
+find_package(ECM QUIET NO_MODULE)
+if(ECM_FOUND)
+    # 保存原始的CMAKE_MODULE_PATH
+    set(_ORIGINAL_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
+    set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${CMAKE_MODULE_PATH})
+
+    # 包含KDE CMake模块（可选）
+    include(KDEInstallDirs OPTIONAL)
+    include(KDECMakeSettings OPTIONAL)
+    include(ECMSetupVersion OPTIONAL)
+    include(ECMGenerateHeaders OPTIONAL)
+
+    message(STATUS "Using ECM (Extra CMake Modules) for enhanced CMake support")
+else()
+    message(STATUS "ECM not found, using standard CMake modules")
+endif()
 if(WITH_SUBMODULE_QWLROOTS)
   # Use qwlroots from project root directory
   include(${CMAKE_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)

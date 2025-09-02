@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# 在子模块模式下，qwlroots已经静态链接到waylib中，无需外部依赖
+# 在非子模块模式下，需要根据实际安装情况进行配置
+# 这里我们假设在安装时，所有必需的依赖都已经正确处理
+
+include(${CMAKE_CURRENT_LIST_DIR}/WaylibQuickSharedServerTargets.cmake)
+
+check_required_components(WaylibQuickSharedServer)

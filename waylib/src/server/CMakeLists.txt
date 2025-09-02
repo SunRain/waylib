@@ -1,11 +1,30 @@
-set(TARGET waylibserver)
+set(TARGET QuickSharedServer)
 
-set(WAYLIB_CMAKE_INSTALL_DIR
-    "${CMAKE_INSTALL_LIBDIR}/cmake/WaylibSharedServer"
-    CACHE STRING "Install directory for waylib cmake files"
-)
+# 使用KDEInstallDirs提供的变量，如果ECM可用的话
+if(ECM_FOUND AND DEFINED KDE_INSTALL_CMAKEPACKAGEDIR)
+    set(WAYLIB_CMAKE_INSTALL_DIR
+        "${KDE_INSTALL_CMAKEPACKAGEDIR}/Waylib"
+        CACHE STRING "Install directory for waylib cmake files"
+    )
+    set(WAYLIB_QML_INSTALL_DIR
+        "${KDE_INSTALL_QMLDIR}"
+        CACHE STRING "Install directory for QML modules"
+    )
+    message(STATUS "Using KDE install directories for Waylib")
+else()
+    set(WAYLIB_CMAKE_INSTALL_DIR
+        "${CMAKE_INSTALL_LIBDIR}/cmake/Waylib"
+        CACHE STRING "Install directory for waylib cmake files"
+    )
+    set(WAYLIB_QML_INSTALL_DIR
+        "/usr/lib/qt6/qml"
+        CACHE STRING "Install directory for QML modules"
+    )
+    message(STATUS "Using standard install directories for Waylib")
+endif()
+
 set(WAYLIB_INCLUDE_INSTALL_DIR
-    "${CMAKE_INSTALL_INCLUDEDIR}/${TARGET}"
+    "${CMAKE_INSTALL_INCLUDEDIR}/waylib"
     CACHE STRING "Install directory for waylib headers"
 )
 
@@ -288,12 +307,13 @@ add_library(${TARGET}
     ${SOURCES}
 )
 
-add_library(Waylib::SharedServer ALIAS ${TARGET})
+add_library(Waylib::QuickSharedServer ALIAS ${TARGET})
 
 qt_add_qml_module(${TARGET}
     URI Waylib.QuickSharedServer
     VERSION "1.0" # Qt bug: The major version must be larger than 0
-    OUTPUT_DIRECTORY "Waylib/Server"
+    OUTPUT_DIRECTORY "Waylib/QuickSharedServer"
+    INSTALL_LOCATION "${WAYLIB_QML_INSTALL_DIR}"
     SOURCES
         ${HEADERS}
         ${PRIVATE_HEADERS}
@@ -310,7 +330,7 @@ set_target_properties(${TARGET}
     PROPERTIES
         VERSION ${CMAKE_PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
-        EXPORT_NAME SharedServer
+        EXPORT_NAME QuickSharedServer
         PUBLIC_HEADER "${HEADERS}"
 	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
 	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
@@ -372,7 +392,7 @@ endif()
 
 install(TARGETS ${TARGET}
     EXPORT
-        WaylibSharedServerTargets
+        WaylibQuickSharedServerTargets
     LIBRARY
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER
@@ -381,26 +401,26 @@ install(TARGETS ${TARGET}
 )
 
 configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibSharedServerConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibQuickSharedServerConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/WaylibQuickSharedServerConfig.cmake"
     INSTALL_DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
 )
 
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/WaylibQuickSharedServerConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMinorVersion
 )
 
 install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfigVersion.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/WaylibQuickSharedServerConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/WaylibQuickSharedServerConfigVersion.cmake
     DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
 )
 
 install(
-    EXPORT WaylibSharedServerTargets
-    FILE WaylibSharedServerTargets.cmake
+    EXPORT WaylibQuickSharedServerTargets
+    FILE WaylibQuickSharedServerTargets.cmake
     DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
     NAMESPACE Waylib::
 )
