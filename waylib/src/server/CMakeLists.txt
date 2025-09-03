@@ -1,4 +1,4 @@
-set(TARGET QuickSharedServer)
+set(TARGET SharedServer)
 
 # 使用KDEInstallDirs提供的变量，如果ECM可用的话
 if(ECM_FOUND AND DEFINED KDE_INSTALL_CMAKEPACKAGEDIR)
@@ -307,7 +307,7 @@ add_library(${TARGET}
     ${SOURCES}
 )
 
-add_library(Waylib::QuickSharedServer ALIAS ${TARGET})
+add_library(Waylib::SharedServer ALIAS ${TARGET})
 
 qt_add_qml_module(${TARGET}
     URI Waylib.QuickSharedServer
@@ -330,7 +330,7 @@ set_target_properties(${TARGET}
     PROPERTIES
         VERSION ${CMAKE_PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
-        EXPORT_NAME QuickSharedServer
+        EXPORT_NAME SharedServer
         PUBLIC_HEADER "${HEADERS}"
 	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
 	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
@@ -392,7 +392,7 @@ endif()
 
 install(TARGETS ${TARGET}
     EXPORT
-        WaylibQuickSharedServerTargets
+        WaylibSharedServerTargets
     LIBRARY
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER
@@ -401,26 +401,26 @@ install(TARGETS ${TARGET}
 )
 
 configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibQuickSharedServerConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/WaylibQuickSharedServerConfig.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibSharedServerConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake"
     INSTALL_DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
 )
 
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/WaylibQuickSharedServerConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMinorVersion
 )
 
 install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/WaylibQuickSharedServerConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/WaylibQuickSharedServerConfigVersion.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfigVersion.cmake
     DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
 )
 
 install(
-    EXPORT WaylibQuickSharedServerTargets
-    FILE WaylibQuickSharedServerTargets.cmake
+    EXPORT WaylibSharedServerTargets
+    FILE WaylibSharedServerTargets.cmake
     DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
     NAMESPACE Waylib::
 )

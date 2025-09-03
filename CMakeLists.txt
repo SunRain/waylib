@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25.0)
 
-project(QuickWaylibSharedServer
+project(QuickWaylibServer
     VERSION 0.2.2
     LANGUAGES CXX C)
 
@@ -44,7 +44,7 @@ if(WITH_SUBMODULE_WAYLIB)
     add_subdirectory(waylib)
     list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
 else()
-    find_package(Waylib REQUIRED COMPONENTS QuickSharedServer)
+    find_package(Waylib REQUIRED COMPONENTS SharedServer)
 endif()
 
 set(QML_IMPORT_PATH "${LOCAL_QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
