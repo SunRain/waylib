@@ -88,3 +88,6 @@ obj-*-linux-gnu/
 # ai/cursor
 .cursor
 .specstory
+
+.kilocode/
+
