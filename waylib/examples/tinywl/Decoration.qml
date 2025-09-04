@@ -3,7 +3,7 @@
 
 import QtQuick
 import QtQuick.Effects
-import Waylib.QuickSharedServer
+import Waylib.Server
 import Tinywl
 
 Item {

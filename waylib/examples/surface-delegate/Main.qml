@@ -4,7 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Waylib.QuickSharedServer
+import Waylib.Server
 
 Item {
     id :root
