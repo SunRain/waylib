@@ -1,14 +1,43 @@
 set(TARGET WaylibSharedServer)
 
-# 使用KDEInstallDirs提供的变量，如果ECM可用的话
+# CMake函数：解析QML安装路径，支持环境变量和优先级
+function(determine_qml_install_dir result_var)
+    # 优先级1: 检查QT6_INSTALL_QMLDIR环境变量
+    if(DEFINED ENV{QT6_INSTALL_QMLDIR})
+        set(qt6_qmldir "$ENV{QT6_INSTALL_QMLDIR}")
+        # 验证环境变量值是否有效
+        if(qt6_qmldir STREQUAL "")
+            message(WARNING "QT6_INSTALL_QMLDIR environment variable is set but empty, ignoring")
+        elseif(NOT IS_ABSOLUTE "${qt6_qmldir}")
+            message(WARNING "QT6_INSTALL_QMLDIR environment variable must be an absolute path: ${qt6_qmldir}, ignoring")
+        else()
+            message(STATUS "Using QT6_INSTALL_QMLDIR from environment: ${qt6_qmldir}")
+            set(${result_var} "${qt6_qmldir}" PARENT_SCOPE)
+            return()
+        endif()
+    endif()
+
+    # 优先级2: 使用KDE安装目录（如果ECM可用）
+    if(ECM_FOUND AND DEFINED KDE_INSTALL_QMLDIR)
+        message(STATUS "Using KDE install directory for QML modules: ${KDE_INSTALL_QMLDIR}")
+        set(${result_var} "${KDE_INSTALL_QMLDIR}" PARENT_SCOPE)
+        return()
+    endif()
+
+    # 优先级3: 使用默认路径
+    set(default_qml_dir "/usr/lib/qt6/qml")
+    message(STATUS "Using default QML install directory: ${default_qml_dir}")
+    set(${result_var} "${default_qml_dir}" PARENT_SCOPE)
+endfunction()
+
+# 确定QML安装目录
+determine_qml_install_dir(WAYLIB_QML_INSTALL_DIR)
+
+# 设置CMake安装目录
 if(ECM_FOUND AND DEFINED KDE_INSTALL_CMAKEPACKAGEDIR)
     set(WAYLIB_CMAKE_INSTALL_DIR
         "${KDE_INSTALL_CMAKEPACKAGEDIR}/Waylib"
         CACHE STRING "Install directory for waylib cmake files"
-    )
-    set(WAYLIB_QML_INSTALL_DIR
-        "${KDE_INSTALL_QMLDIR}"
-        CACHE STRING "Install directory for QML modules"
     )
     message(STATUS "Using KDE install directories for Waylib")
 else()
@@ -16,12 +45,11 @@ else()
         "${CMAKE_INSTALL_LIBDIR}/cmake/Waylib"
         CACHE STRING "Install directory for waylib cmake files"
     )
-    set(WAYLIB_QML_INSTALL_DIR
-        "/usr/lib/qt6/qml"
-        CACHE STRING "Install directory for QML modules"
-    )
     message(STATUS "Using standard install directories for Waylib")
 endif()
+
+# 输出最终的QML安装路径
+message(STATUS "QML modules will be installed to: ${WAYLIB_QML_INSTALL_DIR}")
 
 set(WAYLIB_INCLUDE_INSTALL_DIR
     "${CMAKE_INSTALL_INCLUDEDIR}/waylib"
@@ -314,10 +342,31 @@ qt_add_qml_module(${TARGET}
     VERSION "1.0" # Qt bug: The major version must be larger than 0
     OUTPUT_DIRECTORY "Waylib/QuickSharedServer"
     INSTALL_LOCATION "${WAYLIB_QML_INSTALL_DIR}"
+    PLUGIN_TARGET ${TARGET}
     SOURCES
         ${HEADERS}
         ${PRIVATE_HEADERS}
 )
+
+# 检查qmlplugindump工具是否可用，如果不可用则使用备选方案
+# find_program(QMLPLUGINDUMP_EXECUTABLE qmlplugindump)
+# if(NOT QMLPLUGINDUMP_EXECUTABLE)
+    message(WARNING "qmlplugindump not found. Using fallback manual generation for QML files.")
+
+    # 包含备选方案脚本
+    include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/GenerateQmlFiles.cmake)
+
+    # 手动生成QML文件
+    set(QML_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/Waylib/QuickSharedServer")
+    generate_qml_files(${TARGET} "Waylib.Server" "1.0" "${QML_OUTPUT_DIR}" "${HEADERS}")
+
+    # 安装手动生成的QML文件
+    install(FILES
+        ${QML_OUTPUT_DIR}/qmldir
+        ${QML_OUTPUT_DIR}/${TARGET}.qmltypes
+        DESTINATION ${WAYLIB_QML_INSTALL_DIR}/Waylib/QuickSharedServer
+    )
+# endif()
 
 target_compile_definitions(${TARGET}
     PRIVATE
@@ -429,3 +478,18 @@ include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
     "qwlroots, Qt6Gui, Qt6Quick"
 )
+
+# 输出QML安装路径信息到pkg-config文件
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/qmldir.pc.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/qmldir.pc"
+    @ONLY
+)
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/qmldir.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
+
+# 验证QML安装配置
+include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/VerifyQmlInstallation.cmake)
+#verify_qml_installation("${WAYLIB_QML_INSTALL_DIR}" "Waylib.Server")

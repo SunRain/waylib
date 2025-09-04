@@ -26,6 +26,20 @@ waylib 是一个 Wayland 合成器开发库，基于 [qwlroots](https://github.c
 
 ## 构建
 
+### QML 模块配置
+
+waylib 支持通过环境变量进行灵活的 QML 模块安装配置：
+
+- **QT6_INSTALL_QMLDIR**: 设置此环境变量以指定自定义 QML 安装目录
+  ```bash
+  export QT6_INSTALL_QMLDIR=/custom/path/to/qml
+  ```
+- **自动生成**: QML 模块文件（qmldir、plugins.qmltypes）在构建过程中自动生成
+- **备选方案**: 如果 qmlplugindump 不可用，将使用手动生成为备选方案
+- **优先级顺序**: QT6_INSTALL_QMLDIR > KDE_INSTALL_QMLDIR > 默认路径（/usr/lib/qt6/qml）
+
+### 依赖安装
+
 步骤一：编译安装 wlroots 和 qwlroots
 
 waylib 需要安装开发版本（0.19）的 wlroots, 需要[自行编译安装](https://gitlab.freedesktop.org/wlroots/wlroots#building)， Archlinux 用户可以安装 [wlroots-0.19](https://archlinux.org/packages/extra/x86_64/wlroots0.19/).。

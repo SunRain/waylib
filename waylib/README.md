@@ -26,11 +26,25 @@ Based on the above features, compositor developers need only focus on the busine
 
 ## Building
 
+### QML Module Configuration
+
+waylib supports flexible QML module installation through environment variables and automatic configuration:
+
+- **QT6_INSTALL_QMLDIR**: Set this environment variable to specify a custom QML installation directory
+  ```bash
+  export QT6_INSTALL_QMLDIR=/custom/path/to/qml
+  ```
+- **Automatic Generation**: QML module files (qmldir, plugins.qmltypes) are automatically generated during build
+- **Fallback Support**: If qmlplugindump is unavailable, manual generation is used as fallback
+- **Priority Order**: QT6_INSTALL_QMLDIR > KDE_INSTALL_QMLDIR > Default (/usr/lib/qt6/qml)
+
+### Dependencies
+
 Step 1: Compiling and Installing wlroots and qwlroots
 
 waylib requires the development version (0.19) of wlroots, which needs to be [compiled and installed manually](https://gitlab.freedesktop.org/wlroots/wlroots#building). Arch Linux users can install [wlroots-0.19](https://archlinux.org/packages/extra/x86_64/wlroots0.19/).
 
-For qwlroots, it is currently recommended to use the version provided as a submodule. However, you can also [compile and install](https://github.com/vioken/qwlroots) it by yourself. 
+For qwlroots, it is currently recommended to use the version provided as a submodule. However, you can also [compile and install](https://github.com/vioken/qwlroots) it by yourself.
 
 If using the submodule version, please note the following two points:
 

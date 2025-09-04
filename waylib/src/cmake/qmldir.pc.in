@@ -1,12 +1,11 @@
 prefix=${CMAKE_INSTALL_PREFIX}
 exec_prefix=${CMAKE_INSTALL_PREFIX}
 libdir=${CMAKE_INSTALL_FULL_LIBDIR}
-includedir=${include_dir}
+includedir=${WAYLIB_INCLUDE_INSTALL_DIR}
 qmldir=${WAYLIB_QML_INSTALL_DIR}
 
-Name: ${name}
-Description:
+Name: waylib-qmldir
+Description: QML installation directory for Waylib
 Version: ${CMAKE_PROJECT_VERSION}
-Requires: ${depends}
-Libs: -l${library}
-Cflags: -I${include_dir}
+Libs:
+Cflags:
