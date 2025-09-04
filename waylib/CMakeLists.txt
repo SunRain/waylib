@@ -48,6 +48,10 @@ else()
 endif()
 if(WITH_SUBMODULE_QWLROOTS)
   # Use qwlroots from project root directory
+  # 传递BUILD_SHARED_LIBS选项给qwlroots子模块
+  if(DEFINED BUILD_SHARED_LIBS_WAYLIB)
+    set(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_WAYLIB})
+  endif()
   include(${CMAKE_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
   add_subdirectory(${CMAKE_SOURCE_DIR}/qwlroots qwlroots)
   message("Using QWlroots from submodule")

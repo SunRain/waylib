@@ -27,6 +27,9 @@ add_feature_info(DemoClents BUILD_TEST_CLIENTS "clients demo for testing")
 
 option(DISABLE_DDM "Disable DDM and greeter" ON)
 
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+add_feature_info(BuildSharedLibs BUILD_SHARED_LIBS "Build shared libraries instead of static")
+
 if (DISABLE_DDM)
     add_compile_definitions("DISABLE_DDM")
 endif()
@@ -40,6 +43,8 @@ set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 
 if(WITH_SUBMODULE_WAYLIB)
     set(WITH_SUBMODULE_QWLROOTS ON)
+    # 传递BUILD_SHARED_LIBS选项给waylib子模块
+    set(BUILD_SHARED_LIBS_WAYLIB ${BUILD_SHARED_LIBS})
     include(${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
     add_subdirectory(waylib)
     list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")

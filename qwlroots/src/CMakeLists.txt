@@ -1,5 +1,5 @@
 set(TARGET qwlroots)
-set(CMAKE_NAME ${CMAKE_PROJECT_NAME})
+set(CMAKE_NAME QWlroots)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_compile_options(-Wall -Wextra -Werror=unused-variable -Werror=unused-parameter)
@@ -162,7 +162,7 @@ set(HEADERS
 )
 
 if (USE_WLROOTS_19)  # 0.19
-    list(APPEND HEADERS 
+    list(APPEND HEADERS
         types/qwcolormanagerv1.h
         types/qwextimagecopycapturev1.h
         types/qwextforeigntoplevellistv1.h
@@ -218,13 +218,25 @@ if (NOT DISABLE_WLR_PROTOCOLS)
     list(APPEND SOURCES ${PROTOCOL_SOURCES})
 endif ()
 
-add_library(${TARGET}
-    ${SOURCES}
-    ${HEADERS}
-    qwobject.cpp
-    qwbackend.cpp
-    types/qwinputdevice.cpp
-)
+if(BUILD_SHARED_LIBS)
+    add_library(${TARGET}
+        SHARED
+        ${SOURCES}
+        ${HEADERS}
+        qwobject.cpp
+        qwbackend.cpp
+        types/qwinputdevice.cpp
+    )
+else()
+    add_library(${TARGET}
+        STATIC
+        ${SOURCES}
+        ${HEADERS}
+        qwobject.cpp
+        qwbackend.cpp
+        types/qwinputdevice.cpp
+    )
+endif()
 add_library(QWlroots::QWlroots ALIAS ${TARGET})
 
 set_target_properties(${TARGET}

@@ -1,4 +1,4 @@
-set(TARGET SharedServer)
+set(TARGET WaylibSharedServer)
 
 # 使用KDEInstallDirs提供的变量，如果ECM可用的话
 if(ECM_FOUND AND DEFINED KDE_INSTALL_CMAKEPACKAGEDIR)
