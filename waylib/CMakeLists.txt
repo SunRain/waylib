@@ -11,10 +11,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(WITH_SUBMODULE_QWLROOTS "Use the QWlroots from git submodule" ON)
 option(
-  BUILD_EXAMPLES
+  BUILD_WAYLIB_EXAMPLES
   "A minimum viable product Wayland compositor based on waylib and other examples"
   ON)
-option(BUILD_TESTS "Build test demos" ON)
+option(BUILD_WAYLIB_TESTS "Build test demos" ON)
 option(DISABLE_XWAYLAND "Disable the xwayland support" OFF)
 # Don't install tinywl by default, using for debug in local
 option(INSTALL_TINYWL
@@ -49,11 +49,14 @@ endif()
 if(WITH_SUBMODULE_QWLROOTS)
   # Use qwlroots from project root directory
   # 传递BUILD_SHARED_LIBS选项给qwlroots子模块
-#   if(DEFINED BUILD_SHARED_LIBS_WAYLIB)
-#     set(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_WAYLIB})
-#   endif()
+ #   if(DEFINED BUILD_SHARED_LIBS_WAYLIB)
+ #     set(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_WAYLIB})
+ #   endif()
   #始终静态编译qwlroots
   set(BUILD_SHARED_QWLROOTS_LIBS OFF)
+  # 确保从父目录传递的构建选项生效
+  set(BUILD_QWLROOTS_TESTS ON CACHE BOOL "Build qwlroots tests" FORCE)
+  set(BUILD_QWLROOTS_EXAMPLES ON CACHE BOOL "Build qwlroots examples" FORCE)
   include(${CMAKE_CURRENT_SOURCE_DIR}/../qwlroots/cmake/WaylandScannerHelpers.cmake)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../qwlroots qwlroots)
   message("Using QWlroots from submodule")
@@ -78,10 +81,10 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(PackageVersionHelper)
 
 add_subdirectory(src)
-if(BUILD_EXAMPLES)
+if(BUILD_WAYLIB_EXAMPLES)
   add_subdirectory(examples)
 endif()
-if(BUILD_TESTS)
+if(BUILD_WAYLIB_TESTS)
   enable_testing(true)
   add_subdirectory(tests)
 endif()

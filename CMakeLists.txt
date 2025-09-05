@@ -46,6 +46,9 @@ if(WITH_SUBMODULE_WAYLIB)
     # 传递BUILD_SHARED_LIBS选项给waylib子模块
     set(BUILD_SHARED_LIBS_WAYLIB ${BUILD_SHARED_LIBS})
     set(BUILD_SHARED_QWLROOTS_LIBS OFF)
+    # 确保从父目录传递的构建选项生效
+    set(BUILD_WAYLIB_TESTS ON CACHE BOOL "Build test demos" FORCE)
+    set(BUILD_WAYLIB_EXAMPLES ON CACHE BOOL "Build examples" FORCE)
     include(${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
     add_subdirectory(waylib)
     list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
