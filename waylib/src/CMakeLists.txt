@@ -16,11 +16,15 @@ write_basic_package_version_file(
     COMPATIBILITY SameMinorVersion
 )
 
+# 注意：WaylibTargets将在server子目录中定义
+
 # 安装配置文件
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/WaylibConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/WaylibConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Waylib
 )
+
+# 注意：WaylibTargets将在server子目录中定义
 
 add_subdirectory(server)

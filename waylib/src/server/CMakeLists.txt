@@ -89,15 +89,11 @@ set(SOURCES
     kernel/wserver.cpp
     kernel/wsurface.cpp
     kernel/wtoplevelsurface.cpp
-
-
     kernel/wtypes.cpp
-
     kernel/woutputlayout.cpp
     kernel/wxcursorimage.cpp
     kernel/wglobal.cpp
     kernel/wsocket.cpp
-
     qtquick/wsurfaceitem.cpp
     qtquick/woutputhelper.cpp
     qtquick/woutputrenderwindow.cpp
@@ -120,33 +116,27 @@ set(SOURCES
     qtquick/winputpopupsurfaceitem.cpp
     qtquick/wsgtextureprovider.cpp
     qtquick/wtextureproviderprovider.cpp
-
     qtquick/private/wquickcoordmapper.cpp
     qtquick/private/wquicksocketattached.cpp
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wbufferrenderer.cpp
     qtquick/private/wrenderbuffernode.cpp
-
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.c
-
     utils/wtools.cpp
     utils/wthreadutils.cpp
     utils/wimagebuffer.cpp
     utils/wcursorimage.cpp
-
     platformplugin/qwlrootsintegration.cpp
     platformplugin/qwlrootscreen.cpp
     platformplugin/qwlrootswindow.cpp
     platformplugin/qwlrootscursor.cpp
     platformplugin/types.cpp
-
     protocols/wxdgshell.cpp
     protocols/wxdgsurface.cpp
     protocols/wxdgtoplevelsurface.cpp
     protocols/wxdgpopupsurface.cpp
-
     protocols/wxwayland.cpp
     protocols/wxwaylandsurface.cpp
     protocols/wlayersurface.cpp
@@ -164,9 +154,7 @@ set(SOURCES
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
-
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
-)
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c)
 
 set(HEADERS
     kernel/wglobal.h
@@ -183,7 +171,6 @@ set(HEADERS
     kernel/wxcursorimage.h
     kernel/wsocket.h
     kernel/wtoplevelsurface.h
-
     kernel/WOutput
     kernel/WServer
     kernel/WServerInterface
@@ -194,7 +181,6 @@ set(HEADERS
     kernel/WEvent
     kernel/WInputEvent
     kernel/WSurface
-
     qtquick/wsurfaceitem.h
     qtquick/WSurfaceItem
     qtquick/woutputhelper.h
@@ -218,7 +204,6 @@ set(HEADERS
     qtquick/wqmlcreator.h
     qtquick/wsgtextureprovider.h
     qtquick/wtextureproviderprovider.h
-
     utils/wtools.h
     utils/wthreadutils.h
     utils/WThreadUtils
@@ -227,7 +212,6 @@ set(HEADERS
     utils/WCursorImage
     utils/wwrappointer.h
     utils/WWrapPointer
-
     protocols/wxdgshell.h
     protocols/WXdgShell
     protocols/wxdgsurface.h
@@ -256,8 +240,7 @@ set(HEADERS
     protocols/WXWayland
     protocols/wxwaylandsurface.h
     protocols/WXWaylandSurface
-    protocols/wextforeigntoplevellistv1.h
-)
+    protocols/wextforeigntoplevellistv1.h)
 
 set(PRIVATE_HEADERS
     platformplugin/qwlrootsintegration.h
@@ -277,63 +260,53 @@ set(PRIVATE_HEADERS
     qtquick/private/wbufferrenderer_p.h
     qtquick/private/wrenderbuffernode_p.h
     qtquick/private/wsurfaceitem_p.h
-
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
-
     protocols/private/winputmethodv2_p.h
     protocols/private/wtextinput_p.h
     protocols/private/wtextinputv1_p.h
     protocols/private/wtextinputv2_p.h
     protocols/private/wtextinputv3_p.h
-    protocols/private/wvirtualkeyboardv1_p.h
-)
+    protocols/private/wvirtualkeyboardv1_p.h)
 
 if(NOT DISABLE_XWAYLAND)
-    list(APPEND SOURCES
-        protocols/wxwayland.cpp
-        protocols/wxwaylandsurface.cpp
-    )
+    list(APPEND SOURCES protocols/wxwayland.cpp protocols/wxwaylandsurface.cpp)
 
-    list(APPEND HEADERS
-        protocols/wxwayland.h
-        protocols/wxwaylandsurface.h
-    )
+    list(APPEND HEADERS protocols/wxwayland.h protocols/wxwaylandsurface.h)
 endif()
 
-add_library(${TARGET}
-    SHARED
-    ${SOURCES}
-)
+add_library(${TARGET} SHARED ${SOURCES})
 
 add_library(Waylib::SharedServer ALIAS ${TARGET})
 
-qt_add_qml_module(${TARGET}
-    URI Waylib.QuickSharedServer
-    VERSION "1.0" # Qt bug: The major version must be larger than 0
-    OUTPUT_DIRECTORY "Waylib/QuickSharedServer"
-    INSTALL_LOCATION "${WAYLIB_QML_INSTALL_DIR}"
+qt_add_qml_module(
+    ${TARGET}
+    URI
+    Waylib.QuickSharedServer
+    VERSION
+    "1.0" # Qt bug: The major version must be larger than 0
+    OUTPUT_DIRECTORY
+    "Waylib/QuickSharedServer"
+    INSTALL_LOCATION
+    "${WAYLIB_QML_INSTALL_DIR}"
     SOURCES
-        ${HEADERS}
-        ${PRIVATE_HEADERS}
-)
+    ${HEADERS}
+    ${PRIVATE_HEADERS})
 
-target_compile_definitions(${TARGET}
-    PRIVATE
-    WLR_USE_UNSTABLE
-    LIBWAYLIB_SERVER_LIBRARY
-    QT_NO_SIGNALS_SLOTS_KEYWORDS
-)
+target_compile_definitions(
+    ${TARGET} PRIVATE WLR_USE_UNSTABLE LIBWAYLIB_SERVER_LIBRARY
+    QT_NO_SIGNALS_SLOTS_KEYWORDS)
 
-set_target_properties(${TARGET}
-    PROPERTIES
-        VERSION ${CMAKE_PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION_MAJOR}
-        EXPORT_NAME SharedServer
-        PUBLIC_HEADER "${HEADERS}"
-	# PRIVATE_HEADER "${PRIVATE_HEADERS}"
-	# CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
+set_target_properties(
+    ${TARGET}
+    PROPERTIES VERSION ${CMAKE_PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    EXPORT_NAME SharedServer
+    PUBLIC_HEADER "${HEADERS}"
+    # PRIVATE_HEADER "${PRIVATE_HEADERS}"
+    # CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER
+    # DESTINATION
 )
 
 set(QT_LIBRARIES "")
@@ -341,9 +314,9 @@ foreach(temp ${QT_COMPONENTS})
     list(APPEND QT_LIBRARIES "Qt6::${temp}")
 endforeach()
 
-target_link_libraries(${TARGET}
-    PRIVATE
-    ${QT_LIBRARIES}
+target_link_libraries(
+    ${TARGET}
+    PRIVATE ${QT_LIBRARIES}
     PkgConfig::WLROOTS
     PkgConfig::LIBDRM
     PkgConfig::WAYLAND
@@ -351,81 +324,66 @@ target_link_libraries(${TARGET}
     PkgConfig::PIXMAN
     PkgConfig::XKBCOMMON
     PkgConfig::XCB
-    PkgConfig::EGL
-)
+    PkgConfig::EGL)
 
-target_link_libraries(${TARGET}
-    PUBLIC
-        QWlroots::QWlroots
-)
+target_link_libraries(${TARGET} PUBLIC QWlroots::QWlroots)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-target_include_directories(${TARGET}
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernel>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>
-        $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
-    PRIVATE
-        ${Qt6Gui_PRIVATE_INCLUDE_DIRS}
-        ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
-        ${Qt6EglSupport_PRIVATE_INCLUDE_DIRS}
-        ${Qt6InputSupport_PRIVATE_INCLUDE_DIRS}
-)
+target_include_directories(
+    ${TARGET}
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernel>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>
+    $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
+    PRIVATE ${Qt6Gui_PRIVATE_INCLUDE_DIRS} ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
+    ${Qt6EglSupport_PRIVATE_INCLUDE_DIRS}
+    ${Qt6InputSupport_PRIVATE_INCLUDE_DIRS})
 
-target_link_directories(${TARGET}
-    INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
-)
+target_link_directories(
+    ${TARGET} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>)
 
-if (WAYLIB_USE_PERCOMPILE_HEADERS)
-    target_precompile_headers(${TARGET}
-        PRIVATE
-        "$<$<COMPILE_LANGUAGE:CXX>:pch/pch.hxx>"
-    )
+if(WAYLIB_USE_PERCOMPILE_HEADERS)
+    target_precompile_headers(${TARGET} PRIVATE
+        "$<$<COMPILE_LANGUAGE:CXX>:pch/pch.hxx>")
 endif()
 
-install(TARGETS ${TARGET}
-    EXPORT
-        WaylibSharedServerTargets
-    LIBRARY
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER
-        COMPONENT Development
-        DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
-)
+install(
+    TARGETS ${TARGET}
+    EXPORT WaylibSharedServerTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER COMPONENT Development DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR})
 
 configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibSharedServerConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake"
-    INSTALL_DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
-)
+    INSTALL_DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR})
 
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMinorVersion
-)
+    COMPATIBILITY SameMinorVersion)
 
-install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake
+# 导出构建目录中的配置文件，以便子模块使用
+export(
+    EXPORT WaylibSharedServerTargets
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerTargets.cmake"
+    NAMESPACE Waylib::)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfigVersion.cmake
-    DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
-)
+    DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR})
 
 install(
     EXPORT WaylibSharedServerTargets
     FILE WaylibSharedServerTargets.cmake
     DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
-    NAMESPACE Waylib::
-)
+    NAMESPACE Waylib::)
 
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
-    "qwlroots, Qt6Gui, Qt6Quick"
-)
+    "qwlroots, Qt6Gui, Qt6Quick")

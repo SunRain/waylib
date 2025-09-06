@@ -52,6 +52,9 @@ if(WITH_SUBMODULE_WAYLIB)
     include(${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
     add_subdirectory(waylib)
     list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
+
+    # 设置Waylib_DIR以便父项目可以找到Waylib
+    set(Waylib_DIR "${CMAKE_CURRENT_BINARY_DIR}/waylib/src" CACHE PATH "Waylib CMake config directory" FORCE)
 else()
     find_package(Waylib REQUIRED COMPONENTS SharedServer)
 endif()

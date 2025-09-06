@@ -9,9 +9,22 @@ function(add_cmake_module name library include_dir)
       VERSION ${PROJECT_VERSION}
       COMPATIBILITY AnyNewerVersion
     )
+
+    # 导出构建目录中的配置文件，以便子模块使用
+    export(EXPORT ${name}Targets
+        FILE "${CMAKE_CURRENT_BINARY_DIR}/${name}Targets.cmake"
+        NAMESPACE ${name}::
+    )
+
     install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/${name}Config.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/${name}ConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${name}
+    )
+
+    install(EXPORT ${name}Targets
+        FILE ${name}Targets.cmake
+        NAMESPACE ${name}::
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${name}
     )
 endfunction()
