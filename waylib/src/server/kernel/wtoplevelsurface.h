@@ -80,28 +80,25 @@ public:
         // Should always be 0 except layer surface
         return 0;
     }
+    virtual bool isInitialized() const {
+        return true;
+    };
 
 public Q_SLOTS:
-    virtual void setMaximize(bool on) {
-        Q_UNUSED(on);
+    virtual void setMaximize([[maybe_unused]] bool on) {
     }
-    virtual void setMinimize(bool on) {
-        Q_UNUSED(on);
+    virtual void setMinimize([[maybe_unused]] bool on) {
     }
-    virtual void setActivate(bool on) {
-        Q_UNUSED(on);
+    virtual void setActivate([[maybe_unused]] bool on) {
     }
-    virtual void setResizeing(bool on) {
-        Q_UNUSED(on);
+    virtual void setResizeing([[maybe_unused]] bool on) {
     }
-    virtual void setFullScreen(bool on) {
-        Q_UNUSED(on);
+    virtual void setFullScreen([[maybe_unused]] bool on) {
     }
 
     // when `checkNewSize` return false, will set `clipedSize` to fit max/min size
     virtual bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) = 0;
-    virtual void resize(const QSize &size) {
-        Q_UNUSED(size)
+    virtual void resize([[maybe_unused]] const QSize &size) {
     }
     virtual void close() {
     }

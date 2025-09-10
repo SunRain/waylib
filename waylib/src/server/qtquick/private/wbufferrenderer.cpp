@@ -43,26 +43,6 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-struct Q_DECL_HIDDEN PixmanRegion
-{
-    PixmanRegion() {
-        pixman_region32_init(&data);
-    }
-    ~PixmanRegion() {
-        pixman_region32_fini(&data);
-    }
-
-    inline operator pixman_region32_t*() {
-        return &data;
-    }
-
-    inline bool isEmpty() const {
-        return !pixman_region32_not_empty(&data);
-    }
-
-    pixman_region32_t data;
-};
-
 inline static WImageRenderTarget *getImageFrom(const QQuickRenderTarget &rt)
 {
     auto d = QQuickRenderTargetPrivate::get(&rt);
@@ -263,8 +243,13 @@ qw_buffer *WBufferRenderer::lastBuffer() const
 
 QRhiTexture *WBufferRenderer::currentRenderTarget() const
 {
+    if (!state.sgRenderTarget.rt)
+        return nullptr;
     auto textureRT = static_cast<QRhiTextureRenderTarget*>(state.sgRenderTarget.rt);
-    return textureRT->description().colorAttachmentAt(0)->texture();
+    auto colorAttachment = textureRT->description().colorAttachmentAt(0);
+    if (!colorAttachment)
+        return nullptr;
+    return colorAttachment->texture();
 }
 
 const qw_damage_ring *WBufferRenderer::damageRing() const
@@ -386,7 +371,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     }
 
     // For software renderer, update the dirty parts relative to the last paint device.
-    PixmanRegion damage;
+    WPixmanRegion damage;
     m_damageRing.rotate_buffer(wbuffer, damage);
     state.dirty = WTools::fromPixmanRegion(damage);
 
@@ -412,7 +397,6 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 #ifndef QT_NO_OPENGL
         if (wd->rhi->backend() == QRhi::OpenGLES2) {
             auto glRT = QRHI_RES(QGles2TextureRenderTarget, rtd->u.rhiRt);
-            Q_ASSERT(glRT->framebuffer >= 0);
             auto glContext = QOpenGLContext::currentContext();
             Q_ASSERT(glContext);
             QOpenGLContextPrivate::get(glContext)->defaultFboRedirect = glRT->framebuffer;
@@ -597,7 +581,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             currentImage->setDevicePixelRatio(1.0);
             const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
             const auto scaledFlushRegion = scaleTF.map(softwareRenderer->flushRegion());
-            PixmanRegion scaledFlushDamage;
+            WPixmanRegion scaledFlushDamage;
             bool ok = WTools::toPixmanRegion(scaledFlushRegion, scaledFlushDamage);
             Q_ASSERT(ok);
 
@@ -661,19 +645,17 @@ void WBufferRenderer::componentComplete()
     QQuickItem::componentComplete();
 }
 
-void WBufferRenderer::resetTextureProvider()
-{
-    if (m_textureProvider)
-        m_textureProvider->setBuffer(nullptr);
-}
-
 void WBufferRenderer::updateTextureProvider()
 {
     if (!m_textureProvider)
         return;
 
-    if (shouldCacheBuffer() && m_textureProvider->qwBuffer() != m_lastBuffer) {
-        m_textureProvider->setBuffer(m_lastBuffer);
+    if (shouldCacheBuffer()) {
+        const bool hasCachedBuffer = m_textureProvider->qwBuffer();
+        // Ensure only update the buffer when the "shouldCacheBuffer" state is changed.
+        // If the state is not changed, the buffer is update in the WBufferRenderer::render.
+        if (!hasCachedBuffer && m_lastBuffer)
+            m_textureProvider->setBuffer(m_lastBuffer);
     } else {
         m_textureProvider->setBuffer(nullptr);
     }

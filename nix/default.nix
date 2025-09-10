@@ -14,26 +14,27 @@
   qtimageformats,
   qtwayland,
   qtsvg,
-  qwlroots,
   ddm,
   deepin,
-  waylib,
   wayland,
   wayland-protocols,
   wlr-protocols,
+  wlroots_0_19,
   treeland-protocols,
   pixman,
   pam,
   libxcrypt,
   libinput,
   nixos-artwork,
+  qwlroots,
+  waylib,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "treeland";
-  version = "0.2.2";
+  version = "0.5-unstable";
 
-  src = nix-filter.filter {
+  src = nix-filter.lib.filter {
     root = ./..;
 
     exclude = [
@@ -42,7 +43,7 @@ stdenv.mkDerivation (finalAttrs: {
       "LICENSES"
       "README.md"
       "README.zh_CN.md"
-      (nix-filter.matchExt "nix")
+      (nix-filter.lib.matchExt "nix")
     ];
   };
 
@@ -54,6 +55,8 @@ stdenv.mkDerivation (finalAttrs: {
                 "${nixos-artwork.wallpapers.simple-blue}/share/backgrounds/nixos/nix-wallpaper-simple-blue.png"
     done
   '';
+
+  depsBuildBuild = [ pkg-config ];
 
   nativeBuildInputs = [
     cmake
@@ -71,28 +74,30 @@ stdenv.mkDerivation (finalAttrs: {
     qtimageformats
     qtwayland
     qtsvg
-    qwlroots
     ddm
     deepin.dtk6declarative
     deepin.dtk6systemsettings
-    waylib
     wayland
     wayland-protocols
     wlr-protocols
     treeland-protocols
+    wlroots_0_19
     pixman
     pam
     libxcrypt
     libinput
+    qwlroots
+    waylib
   ];
 
   cmakeFlags = [
-    "-DQT_IMPORTS_DIR=${placeholder "out"}/${qtbase.qtQmlPrefix}"
-    "-DCMAKE_INSTALL_SYSCONFDIR=${placeholder "out"}/etc"
-    "-DSYSTEMD_SYSTEM_UNIT_DIR=${placeholder "out"}/lib/systemd/system"
-    "-DSYSTEMD_SYSUSERS_DIR=${placeholder "out"}/lib/sysusers.d"
-    "-DSYSTEMD_TMPFILES_DIR=${placeholder "out"}/lib/tmpfiles.d"
-    "-DDBUS_CONFIG_DIR=${placeholder "out"}/share/dbus-1/system.d"
+    (lib.cmakeFeature "QT_IMPORTS_DIR" "${placeholder "out"}/${qtbase.qtQmlPrefix}")
+    (lib.cmakeFeature "CMAKE_INSTALL_SYSCONFDIR" "${placeholder "out"}/etc")
+    (lib.cmakeFeature "SYSTEMD_SYSTEM_UNIT_DIR" "${placeholder "out"}/lib/systemd/system")
+    (lib.cmakeFeature "SYSTEMD_SYSUSERS_DIR" "${placeholder "out"}/lib/sysusers.d")
+    (lib.cmakeFeature "SYSTEMD_TMPFILES_DIR" "${placeholder "out"}/lib/tmpfiles.d")
+    (lib.cmakeFeature "DBUS_CONFIG_DIR" "${placeholder "out"}/share/dbus-1/system.d")
+    (lib.cmakeBool "WITH_SUBMODULE_WAYLIB" false)
   ];
 
   env.PKG_CONFIG_SYSTEMD_SYSTEMDUSERUNITDIR = "${placeholder "out"}/lib/systemd/user";

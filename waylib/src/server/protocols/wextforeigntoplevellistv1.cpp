@@ -61,6 +61,16 @@ public:
         surfaces.erase(surface);
     }
 
+    WToplevelSurface *findSurfaceByHandle(qw_ext_foreign_toplevel_handle_v1 *handle) const
+    {
+        for (const auto &pair : surfaces) {
+            if (pair.second.get() == handle) {
+                return pair.first;
+            }
+        }
+        return nullptr;
+    }
+
 private:
     void updateState(WToplevelSurface *surface, qw_ext_foreign_toplevel_handle_v1 *handle)
     {
@@ -78,7 +88,7 @@ private:
     std::map<WToplevelSurface *, std::unique_ptr<qw_ext_foreign_toplevel_handle_v1>> surfaces;
 };
 
-WExtForeignToplevelListV1::WExtForeignToplevelListV1(QObject *parent)
+WExtForeignToplevelListV1::WExtForeignToplevelListV1([[maybe_unused]] QObject *parent)
     : WObject(*new WExtForeignToplevelListV1Private(this), nullptr)
 {
 }
@@ -97,6 +107,13 @@ void WExtForeignToplevelListV1::removeSurface(WToplevelSurface *surface)
     d->remove(surface);
 }
 
+WToplevelSurface *WExtForeignToplevelListV1::findSurfaceByHandle(qw_ext_foreign_toplevel_handle_v1 *handle) const
+{
+    W_D(const WExtForeignToplevelListV1);
+
+    return d->findSurfaceByHandle(handle);
+}
+
 QByteArrayView WExtForeignToplevelListV1::interfaceName() const
 {
     return "ext_foreign_toplevel_list_v1";
@@ -109,9 +126,8 @@ void WExtForeignToplevelListV1::create(WServer *server)
     m_handle = qw_ext_foreign_toplevel_list_v1::create(*server->handle(), EXT_FOREIGN_TOPLEVEL_LIST_V1_VERSION);
 }
 
-void WExtForeignToplevelListV1::destroy(WServer *server)
+void WExtForeignToplevelListV1::destroy([[maybe_unused]] WServer *server)
 {
-    Q_UNUSED(server);
 }
 
 wl_global *WExtForeignToplevelListV1::global() const

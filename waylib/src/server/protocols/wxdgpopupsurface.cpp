@@ -133,7 +133,7 @@ WXdgPopupSurface *WXdgPopupSurface::fromSurface(WSurface *surface)
     return surface->getAttachedData<WXdgPopupSurface>();
 }
 
-void WXdgPopupSurface::resize(const QSize &size)
+void WXdgPopupSurface::resize([[maybe_unused]] const QSize &size)
 {
 
 }
@@ -153,10 +153,15 @@ QRect WXdgPopupSurface::getContentGeometry() const
     return tmp.toQRect();
 }
 
-bool WXdgPopupSurface::checkNewSize(const QSize &size, QSize *clipedSize)
+bool WXdgPopupSurface::checkNewSize(const QSize &size, [[maybe_unused]] QSize *clipedSize)
 {
-    Q_UNUSED(clipedSize);
     return size.isValid();
+}
+
+bool WXdgPopupSurface::isInitialized() const
+{
+    W_DC(WXdgPopupSurface);
+    return d->nativeHandle()->base->initialized;
 }
 
 WSurface *WXdgPopupSurface::parentSurface() const

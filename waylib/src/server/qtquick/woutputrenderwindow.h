@@ -55,6 +55,8 @@ public:
     WBufferRenderer *currentRenderer() const;
     bool inRendering() const;
 
+    void setRenderEnabled(bool enabled);
+
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
 
     bool disableLayers() const;
@@ -63,7 +65,6 @@ public:
 public Q_SLOTS:
     void render();
     void render(WOutputViewport *output, bool doCommit);
-    void scheduleRender();
     void update();
     void update(WOutputViewport *output);
     void setWidth(qreal arg);
@@ -76,7 +77,7 @@ Q_SIGNALS:
     void outputViewportInitialized(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
     void initialized();
     void disableLayersChanged();
-    void renderEnd();
+    void renderEnd(QList<QPointer<WOutput>> committedOutputs);
     void effectiveDevicePixelRatioChanged(qreal scale);
 
 private:

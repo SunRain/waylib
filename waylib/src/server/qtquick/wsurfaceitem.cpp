@@ -22,10 +22,13 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QSGRenderNode>
+#include <QQueue>
 #include <private/qquickitem_p.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+Q_LOGGING_CATEGORY(waylibSurface, "waylib.server.surface", QtInfoMsg)
 
 class Q_DECL_HIDDEN SubsurfaceContainer : public QQuickItem
 {
@@ -155,7 +158,7 @@ private:
 class Q_DECL_HIDDEN WSurfaceItemContentPrivate: public QQuickItemPrivate
 {
 public:
-    WSurfaceItemContentPrivate(WSurfaceItemContent *qq){}
+    WSurfaceItemContentPrivate([[maybe_unused]] WSurfaceItemContent *qq){}
 
     ~WSurfaceItemContentPrivate() {
     }
@@ -195,23 +198,33 @@ public:
         });
 
         Q_ASSERT(!updateTextureConnection);
-        updateTextureConnection = surface->safeConnect(&WSurface::bufferChanged, q, [q, this] {
-            if (!live) {
-                pendingBuffer.reset(surface->buffer());
-                if (pendingBuffer)
-                    pendingBuffer->lock();
-            } else {
-                buffer.reset(surface->buffer());
-                // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
-                if (buffer)
-                    buffer->lock();
-                q->update();
+        updateTextureConnection = surface->safeConnect(&WSurface::commit,
+                                                       q, [q, this] (quint32 committedState) {
+            const bool bufferChanged = committedState & WLR_SURFACE_STATE_BUFFER;
+
+            if (bufferChanged) {
+                if (!live) {
+                    pendingBuffer.reset(surface->buffer());
+                    if (Q_LIKELY(pendingBuffer))
+                        pendingBuffer->lock();
+                } else {
+                    buffer.reset(surface->buffer());
+                    // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
+                    if (Q_LIKELY(buffer))
+                        buffer->lock();
+
+                    q->update();
+                }
             }
+
+            if (Q_LIKELY((q->isVisible() || lastRendered) && live))
+                surface->scheduleFrameIfNeeded();
         });
 
         updateFrameDoneConnection();
         updateSurfaceState();
         rendered = true;
+        lastRendered = true;
     }
 
     void updateFrameDoneConnection() {
@@ -222,13 +235,22 @@ public:
         if (!q->window()) // maybe null due to item not fully initialized
             return;
 
-        // wayland protocol job should not run in rendering thread, so set context qobject to contentItem
-        frameDoneConnection = QObject::connect(q->window(), &QQuickWindow::afterRendering, q, [this, q](){
-            if ((rendered || q->isVisible()) && live) {
-                surface->notifyFrameDone();
-                rendered = false;
-            }
-        }); // if signal is emitted from seperated rendering thread, default QueuedConnection is used
+        auto rw = q->outputRenderWindow();
+        if (Q_LIKELY(rw)) {
+            // wayland protocol job should not run in rendering thread, so set context qobject to contentItem
+            frameDoneConnection = QObject::connect(rw, &WOutputRenderWindow::renderEnd,
+                                                   q, [this, q] (const QList<QPointer<WOutput>> committedOutputs) {
+                                                       lastRendered = rendered;
+                                                       if (Q_LIKELY((rendered || q->isVisible()) && live)
+                                                           && committedOutputs.contains(surface->framePacingOutput())) {
+                                                           surface->notifyFrameDone();
+                                                           rendered = false;
+                                                       }
+                                                   }); // if signal is emitted from seperated rendering thread, default QueuedConnection is used
+        } else {
+            qCFatal(waylibSurface) << "Needs a WOutputRenderWindow to render the WSurfaceItemContent, "
+                                      "but the current window is:" << q->window();
+        }
     }
 
     void updateSurfaceState() {
@@ -301,6 +323,7 @@ public:
     bool dontCacheLastBuffer = false;
     bool live = true;
     bool ignoreBufferOffset = false;
+    bool lastRendered = false;
     QAtomicInteger<bool> rendered = false;
 };
 
@@ -509,6 +532,11 @@ public:
     {
         if (Q_LIKELY(m_owner))
             m_owner->d_func()->rendered = true;
+    }
+
+    RenderingFlags flags() const override
+    {
+        return QSGRenderNode::NoExternalRendering | QSGRenderNode::BoundedRectRendering;
     }
 
     QPointer<WSurfaceItemContent> m_owner;
@@ -1502,6 +1530,21 @@ void WSurfaceItem::setSubsurfacesVisible(bool newSubsurfacesVisible)
     if (d->aboveSubsurfaceContainer)
         d->aboveSubsurfaceContainer->setVisible(d->subsurfacesVisible);
     Q_EMIT subsurfacesVisibleChanged();
+}
+
+WSurfaceItemContent *WSurfaceItem::findItemContent() const
+{
+    QQueue<QQuickItem *> q;
+    q.enqueue(const_cast<WSurfaceItem*>(this));
+    while (!q.empty()) {
+        auto node = q.dequeue();
+        if (auto content = qobject_cast<WSurfaceItemContent *>(node))
+            return content;
+        for (auto child : node->childItems()) {
+            q.enqueue(child);
+        }
+    }
+    return nullptr;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

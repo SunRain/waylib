@@ -75,6 +75,7 @@ set(HEADERS
     qwobject.h
     qwbackend.h
     qwdisplay.h
+    qwsession.h
     render/qwrenderer.h
     render/qwtexture.h
     render/qwallocator.h
@@ -91,6 +92,7 @@ set(HEADERS
     types/qwsubcompositor.h
     types/qwdatadevice.h
     types/qwdatacontrolv1.h
+    types/qwextdatacontrolv1.h
     types/qwdamagering.h
     types/qwdrm.h
     types/qwdrmleasev1.h
@@ -165,7 +167,9 @@ if (USE_WLROOTS_19)  # 0.19
     list(APPEND HEADERS
         types/qwcolormanagerv1.h
         types/qwextimagecopycapturev1.h
+        types/qwextimagecapturesourcev1.h
         types/qwextforeigntoplevellistv1.h
+        interfaces/qwextimagecapturesourcev1interface.h
     )
 else()
     list(APPEND HEADERS

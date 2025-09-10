@@ -38,10 +38,11 @@ QT_END_NAMESPACE
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-Q_LOGGING_CATEGORY(qLcWlrTouch, "waylib.server.seat", QtWarningMsg)
-Q_LOGGING_CATEGORY(qLcWlrTouchEvents, "waylib.server.seat.events.touch", QtWarningMsg)
-Q_LOGGING_CATEGORY(qLcWlrDragEvents, "waylib.server.seat.events.drag", QtWarningMsg)
-Q_LOGGING_CATEGORY(qLcWlrGestureEvents, "waylib.server.seat.events.gesture", QtWarningMsg)
+// Waylib server seat logging categories
+Q_LOGGING_CATEGORY(waylibSeat, "waylib.server.seat", QtInfoMsg)
+Q_LOGGING_CATEGORY(waylibSeatTouch, "waylib.server.seat.touch", QtInfoMsg)
+Q_LOGGING_CATEGORY(waylibSeatDrag, "waylib.server.seat.drag", QtInfoMsg)
+Q_LOGGING_CATEGORY(waylibSeatGesture, "waylib.server.seat.gesture", QtInfoMsg)
 
 #if QT_CONFIG(wheelevent)
 class Q_DECL_HIDDEN WSeatWheelEvent : public QWheelEvent {
@@ -259,7 +260,7 @@ public:
         Q_ASSERT(qwDevice);
         auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
 
-        qCDebug(qLcWlrTouchEvents) << "Touch frame for device: " << qwDevice->name()
+        qCDebug(waylibSeatTouch) << "Touch frame for device: " << qwDevice->name()
                                    << ", handle the following state: " << state->m_points;
 
         if (state->m_points.isEmpty())
@@ -485,7 +486,7 @@ void WSeatPrivate::on_request_start_drag(wlr_seat_request_start_drag_event *even
         return;
     }
 
-    qCWarning(qLcWlrDragEvents) << "Ignoring start_drag request: "
+    qCWarning(waylibSeatDrag) << "Ignoring start_drag request: "
                                 << "could not validate pointer or touch serial " << event->serial;
 
     wlr_data_source_destroy(event->drag->source);
@@ -524,6 +525,23 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
     auto code = event->keycode + 8; // map to wl_keyboard::keymap_format::keymap_format_xkb_v1
     auto et = event->state == WL_KEYBOARD_KEY_STATE_PRESSED ? QEvent::KeyPress : QEvent::KeyRelease;
     xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->handle()->xkb_state, code);
+
+    // Qt doesn't support XF86Switch_VT_1 to XF86Switch_VT_12, so convert them to
+    // Ctrl+Alt+F1 to Ctrl+Alt+F12
+    //
+    // Assumption: XKB_KEY_XF86Switch_VT_1 and XKB_KEY_F1 are contiguous and ordered such that
+    // (XKB_KEY_F1 + (sym - XKB_KEY_XF86Switch_VT_1)) yields the correct F-key.
+    // If this is not true, the calculation below may be unsafe.
+    static_assert(
+        (XKB_KEY_XF86Switch_VT_12 - XKB_KEY_XF86Switch_VT_1) == (XKB_KEY_F12 - XKB_KEY_F1),
+        "XKB_KEY_XF86Switch_VT_1..12 and XKB_KEY_F1..F12 must be contiguous and ordered for keysym calculation"
+    );
+    if (sym >= XKB_KEY_XF86Switch_VT_1 && sym <= XKB_KEY_XF86Switch_VT_12) {
+        if (keyModifiers == (Qt::ControlModifier | Qt::AltModifier)) {
+            sym = XKB_KEY_F1 + (sym - XKB_KEY_XF86Switch_VT_1);
+        }
+    }
+
     int qtkey = QXkbCommon::keysymToQtKey(sym, keyModifiers, keyboard->handle()->xkb_state, code);
     const QString &text = QXkbCommon::lookupString(keyboard->handle()->xkb_state, code);
 
@@ -641,7 +659,7 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
         cursor->detachInputDevice(device);
 
     if (device->type() == WInputDevice::Type::Touch) {
-        qCDebug(qLcWlrTouch, "WSeat: detachTouchDevice %s", qPrintable(device->qtDevice()->name()));
+        qCDebug(waylibSeat, "WSeat: detachTouchDevice %s", qPrintable(device->qtDevice()->name()));
         auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
         device->removeAttachedData<WSeatPrivate::DeviceState>();
         delete state;
@@ -661,6 +679,25 @@ WSeat::WSeat(const QString &name)
 WSeat *WSeat::fromHandle(const qw_seat *handle)
 {
     return handle->get_data<WSeat>();
+}
+
+// Some event filter related functions needs to get WSeat from QInputEvent,
+// but the input event may come with a virtual device (e.g. created after a TTY
+// switch by an intenal mechanism, like QHoverEvent). Thus we needs a special
+// guarded getter.
+
+// @return A pointer to WSeat if the event is valid, nullptr if not.
+WSeat *WSeat::fromInputEvent(QInputEvent *event) {
+    auto qtDevice = event->device();
+    if (qtDevice->seatName().isEmpty()) {
+        return nullptr;
+    } else {
+        auto device = WInputDevice::from(qtDevice);
+        Q_ASSERT(device);
+        auto seat = device->seat();
+        Q_ASSERT(seat);
+        return seat;
+    }
 }
 
 qw_seat *WSeat::handle() const
@@ -738,7 +775,7 @@ WGlobal::CursorShape WSeat::requestedCursorShape() const
     W_DC(WSeat);
 
     if (d->cursorClient != d->nativeHandle()->pointer_state.focused_client) {
-        qCritical("Focused client never set cursor shape nor surface, will fallback to `Default`");
+        qWarning("Focused client never set cursor shape nor surface, will fallback to `Default`");
         return WGlobal::CursorShape::Default;
     }
 
@@ -783,7 +820,7 @@ void WSeat::attachInputDevice(WInputDevice *device)
     }
 
     if (device->type() == WInputDevice::Type::Touch) {
-        qCDebug(qLcWlrTouch, "WSeat: registerTouchDevice %s", qPrintable(device->qtDevice()->name()));
+        qCDebug(waylibSeat, "WSeat: registerTouchDevice %s", qPrintable(device->qtDevice()->name()));
         auto *state = new WSeatPrivate::DeviceState;
         device->setAttachedData<WSeatPrivate::DeviceState>(state);
         d->touchDeviceList << device;
@@ -1159,18 +1196,17 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wl_pointer_axis_so
     }
 }
 
-void WSeat::notifyFrame(WCursor *cursor)
+void WSeat::notifyFrame([[maybe_unused]] WCursor *cursor)
 {
-    Q_UNUSED(cursor);
     W_D(WSeat);
     d->doNotifyFrame();
 }
 
-void WSeat::notifyGestureBegin(WCursor *cursor, WInputDevice *device, uint32_t time_msec, uint32_t fingers, WGestureEvent::WLibInputGestureType libInputGestureType)
+void WSeat::notifyGestureBegin(WCursor *cursor, WInputDevice *device, [[maybe_unused]] uint32_t time_msec, uint32_t fingers, WGestureEvent::WLibInputGestureType libInputGestureType)
 {
     W_D(WSeat);
     if (d->gestureActive) {
-        qCWarning(qLcWlrGestureEvents) << "Unexpected GestureBegin while already active";
+        qCWarning(waylibSeatGesture) << "Unexpected GestureBegin while already active";
     }
     d->gestureActive = true;
     d->gestureFingers = fingers;
@@ -1185,11 +1221,11 @@ void WSeat::notifyGestureBegin(WCursor *cursor, WInputDevice *device, uint32_t t
         QCoreApplication::sendEvent(w, &e);
 }
 
-void WSeat::notifyGestureUpdate(WCursor *cursor, WInputDevice *device, uint32_t time_msec, const QPointF &delta, double scale, double rotation, WGestureEvent::WLibInputGestureType libInputGestureType)
+void WSeat::notifyGestureUpdate(WCursor *cursor, WInputDevice *device, [[maybe_unused]] uint32_t time_msec, const QPointF &delta, double scale, double rotation, WGestureEvent::WLibInputGestureType libInputGestureType)
 {
     W_D(WSeat);
     if (!d->gestureActive) {
-        qCWarning(qLcWlrGestureEvents) << "Unexpected GestureUpdate while not begin";
+        qCWarning(waylibSeatGesture) << "Unexpected GestureUpdate while not begin";
         return;
     }
     auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
@@ -1217,11 +1253,11 @@ void WSeat::notifyGestureUpdate(WCursor *cursor, WInputDevice *device, uint32_t 
     }
 }
 
-void WSeat::notifyGestureEnd(WCursor *cursor, WInputDevice *device, uint32_t time_msec, bool cancelled, WGestureEvent::WLibInputGestureType libInputGestureType)
+void WSeat::notifyGestureEnd(WCursor *cursor, WInputDevice *device, [[maybe_unused]] uint32_t time_msec, [[maybe_unused]] bool cancelled, WGestureEvent::WLibInputGestureType libInputGestureType)
 {
     W_D(WSeat);
     if (!d->gestureActive) {
-        qCWarning(qLcWlrGestureEvents) << "Unexpected GestureEnd while not begin";
+        qCWarning(waylibSeatGesture) << "Unexpected GestureEnd while not begin";
         return;
     }
     d->gestureActive = false;
@@ -1240,7 +1276,7 @@ void WSeat::notifyHoldBegin(WCursor *cursor, WInputDevice *device, uint32_t time
 {
     W_D(WSeat);
     if (d->gestureActive) {
-        qCWarning(qLcWlrGestureEvents) << "Unexpected HoldBegin while already active";
+        qCWarning(waylibSeatGesture) << "Unexpected HoldBegin while already active";
     }
     d->gestureActive = true;
     d->gestureFingers = fingers;
@@ -1259,7 +1295,7 @@ void WSeat::notifyHoldEnd(WCursor *cursor, WInputDevice *device, uint32_t time_m
 {
     W_D(WSeat);
     if (!d->gestureActive) {
-        qCWarning(qLcWlrGestureEvents) << "Unexpected HoldEnd while not begin";
+        qCWarning(waylibSeatGesture) << "Unexpected HoldEnd while not begin";
         return;
     }
     d->gestureActive = false;
@@ -1278,7 +1314,7 @@ void WSeat::notifyHoldEnd(WCursor *cursor, WInputDevice *device, uint32_t time_m
 
 // deal with touch event form wlr_cursor
 
-void WSeat::notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+void WSeat::notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch_id, [[maybe_unused]] uint32_t time_msec)
 {
     W_D(WSeat);
     auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
@@ -1311,12 +1347,12 @@ void WSeat::notifyTouchDown(WCursor *cursor, WInputDevice *device, int32_t touch
     newTp.area = QRect(0, 0, 8, 8);
     newTp.area.moveCenter(globalPos);
     state->m_points.append(newTp);
-    qCDebug(qLcWlrTouchEvents) << "Touch down form device: " << qwDevice->name()
+    qCDebug(waylibSeatTouch) << "Touch down form device: " << qwDevice->name()
                                << ", touch id: " << touch_id
                                << ", at position" << globalPos;
 }
 
-void WSeat::notifyTouchMotion(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+void WSeat::notifyTouchMotion(WCursor *cursor, WInputDevice *device, int32_t touch_id, [[maybe_unused]] uint32_t time_msec)
 {
 
     W_DC(WSeat);
@@ -1337,7 +1373,7 @@ void WSeat::notifyTouchMotion(WCursor *cursor, WInputDevice *device, int32_t tou
         // Handle this by compressing and keeping the Pressed state until the 'frame'.
         if (tp->state != QEventPoint::Pressed && tp->state != QEventPoint::Released)
             tp->state = tmpState;
-        qCDebug(qLcWlrTouchEvents) << "Touch move form device: " << qwDevice->name()
+        qCDebug(waylibSeatTouch) << "Touch move form device: " << qwDevice->name()
                                    << ", touch id: " << touch_id
                                    << ", to position: " << globalPos
                                    << ", state of the point: " << tp->state;
@@ -1346,7 +1382,7 @@ void WSeat::notifyTouchMotion(WCursor *cursor, WInputDevice *device, int32_t tou
     }
 }
 
-void WSeat::notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_id, uint32_t time_msec)
+void WSeat::notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_id, [[maybe_unused]] uint32_t time_msec)
 {
     W_DC(WSeat);
     auto qwDevice = qobject_cast<QPointingDevice*>(device->qtDevice());
@@ -1364,7 +1400,7 @@ void WSeat::notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_i
         for (const auto &point : std::as_const(state->m_points)) {
             s |= point.state;
         }
-        qCDebug(qLcWlrTouchEvents) << "Touch up form device: " << qwDevice->name()
+        qCDebug(waylibSeatTouch) << "Touch up form device: " << qwDevice->name()
                                    << ", touch id: " << tp->id
                                    << ", at position: " << tp->area.center()
                                    << ", state of all points of this device: " << s;
@@ -1372,7 +1408,7 @@ void WSeat::notifyTouchUp(WCursor *cursor, WInputDevice *device, int32_t touch_i
         if (s == QEventPoint::Released)
             notifyTouchFrame(cursor);
         else
-            qCDebug(qLcWlrTouchEvents) << "waiting for all points to be released";
+            qCDebug(waylibSeatTouch) << "waiting for all points to be released";
     } else {
         qWarning("Inconsistent touch state (got 'Up' without 'Down'");
     }
@@ -1391,7 +1427,7 @@ void WSeat::notifyTouchCancel(WCursor *cursor, WInputDevice *device, int32_t tou
         point->state = static_cast<QEventPoint::State>(WEvent::PointCancelled);
     }
 
-    qCDebug(qLcWlrTouchEvents) << "Touch cancel for device: " << qwDevice->name()
+    qCDebug(waylibSeatTouch) << "Touch cancel for device: " << qwDevice->name()
         << ", discard the following state: " << state->m_points;
 
     if (cursor->eventWindow()) {
@@ -1399,10 +1435,9 @@ void WSeat::notifyTouchCancel(WCursor *cursor, WInputDevice *device, int32_t tou
     }
 }
 
-void WSeat::notifyTouchFrame(WCursor *cursor)
+void WSeat::notifyTouchFrame([[maybe_unused]] WCursor *cursor)
 {
     W_D(WSeat);
-    Q_UNUSED(cursor);
     for (auto *device: std::as_const(d->touchDeviceList)) {
         d->doNotifyTouchFrame(device);
     }

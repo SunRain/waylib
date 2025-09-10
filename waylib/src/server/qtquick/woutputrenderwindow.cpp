@@ -79,6 +79,9 @@ Q_LOGGING_CATEGORY(wlcRenderer, "waylib.server.renderer", QtDebugMsg)
 #else
 Q_LOGGING_CATEGORY(wlcRenderer, "waylib.server.renderer", QtWarningMsg)
 #endif
+
+// Call it before any wlroots render to clean up the GL state in Qt.
+// If you don't do this, there will be tearing, flickering and other graphics problems
 inline static void resetGlState()
 {
 #ifndef QT_NO_OPENGL
@@ -162,8 +165,8 @@ public:
         QPointer<QQuickItem> mapTo;
     };
 
-    OutputHelper(WOutputViewport *output, WOutputRenderWindow *parent, bool renderable, bool contentIsDirty, bool needsFrame)
-        : WOutputHelper(output->output(), renderable, contentIsDirty, needsFrame, parent)
+    OutputHelper(WOutputViewport *output, WOutputRenderWindow *parent, bool contentIsDirty)
+        : WOutputHelper(output->output(), contentIsDirty, parent)
         , m_output(output)
     {
 
@@ -177,8 +180,6 @@ public:
     }
 
     inline void init() {
-        connect(this, &OutputHelper::requestRender, renderWindow(), qOverload<>(&WOutputRenderWindow::render));
-        connect(this, &OutputHelper::damaged, renderWindow(), &WOutputRenderWindow::scheduleRender);
         // TODO: pre update scale after WOutputHelper::setScale
         output()->output()->safeConnect(&WOutput::scaleChanged, this, &OutputHelper::updateSceneDPR);
     }
@@ -367,7 +368,6 @@ public:
     QWindow *m_renderWindow = nullptr;
 };
 
-static QEvent::Type doRenderEventType = static_cast<QEvent::Type>(QEvent::registerEventType());
 class Q_DECL_HIDDEN WOutputRenderWindowPrivate : public QQuickWindowPrivate
 {
 public:
@@ -403,6 +403,13 @@ public:
         layers.append(new OutputLayer(layer));
         return layers.last();
     }
+    inline bool containsOutput(WOutput *o) const {
+        for (auto output : outputs) {
+            if (output->output()->output() == o)
+                return true;
+        }
+        return false;
+    }
 
     inline RenderControl *rc() const {
         return static_cast<RenderControl*>(q_func()->renderControl());
@@ -424,11 +431,10 @@ public:
     void sortOutputs();
 
     QVector<std::pair<OutputHelper *, WBufferRenderer *>>
-    doRenderOutputs(const QList<OutputHelper *> &outputs, bool forceRender);
-    void doRender(const QList<OutputHelper*> &outputs, bool forceRender, bool doCommit);
-    inline void doRender() {
-        doRender(outputs, false, true);
-    }
+    doRenderOutputs(qw_output *needsFrameOutput, const QList<OutputHelper *> &outputs,
+                    bool forceRender);
+    void doRender(qw_output *needsFrameOutput, const QList<OutputHelper*> &outputs,
+                  bool forceRender, bool doCommit);
 
     inline void pushRenderer(WBufferRenderer *renderer) {
         rendererList.push(renderer);
@@ -441,13 +447,16 @@ public:
         if (inRendering)
             return;
 
-        QCoreApplication::postEvent(q_func(), new QEvent(doRenderEventType));
+        for (auto o : outputs) {
+            o->qwoutput()->schedule_frame();
+        }
     }
 
     Q_DECLARE_PUBLIC(WOutputRenderWindow)
 
     bool componentCompleted = true;
     bool inRendering = false;
+    bool renderEnabled = true;
 
     QPointer<qw_renderer> m_renderer;
     QPointer<qw_allocator> m_allocator;
@@ -542,12 +551,7 @@ void OutputHelper::cleanLayerCompositor()
         if (!proxy)
             continue;
 
-        WBufferRenderer *source = qobject_cast<WBufferRenderer*>(proxy->sourceItem());
         proxy->setRenderer(nullptr);
-
-        if (source) {
-            source->resetTextureProvider();
-        }
     }
 
     if (m_output2) {
@@ -810,13 +814,15 @@ WBufferRenderer *OutputHelper::afterRender()
         layers.append({
             .layer = i->wlrLayer->handle(),
             .buffer = buffer->handle(),
+            .src_box = {},
             .dst_box = {
                 .x = i->mapToOutput.x(),
                 .y = i->mapToOutput.y(),
                 .width = i->mapToOutput.width(),
                 .height = i->mapToOutput.height(),
             },
-            .damage = &i->renderer->damageRing()->handle()->current
+            .damage = &i->renderer->damageRing()->handle()->current,
+            .accepted = false
         });
 
         if (needsEndBuffer) {
@@ -1182,7 +1188,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
         }
 
         const auto pos = layer->mapToOutput.topLeft() + hotSpot;
-        wlr_box cleanTransform {.x = pos.x(), .y = pos.y()};
+        wlr_box cleanTransform {.x = pos.x(), .y = pos.y(), .width = 0, .height = 0};
         const auto outputSize = output()->output()->size();
         // the layer->mapRect has been transform in renderLayer, but
         // wlroot's move_cursor also will transform the cursor's position.
@@ -1282,7 +1288,7 @@ void WOutputRenderWindowPrivate::init()
 void WOutputRenderWindowPrivate::init(OutputHelper *helper)
 {
     W_Q(WOutputRenderWindow);
-    QMetaObject::invokeMethod(q, &WOutputRenderWindow::scheduleRender, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(helper, &WOutputHelper::scheduleFrame, Qt::QueuedConnection);
     helper->init();
     QObject::connect(helper->output(), &WOutputViewport::dependsChanged, helper, [this] {
         sortOutputs();
@@ -1400,20 +1406,32 @@ void WOutputRenderWindowPrivate::sortOutputs()
 }
 
 QVector<std::pair<OutputHelper*, WBufferRenderer*>>
-WOutputRenderWindowPrivate::doRenderOutputs(const QList<OutputHelper*> &outputs, bool forceRender)
+WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const QList<OutputHelper*> &outputs,
+                                            bool forceRender)
 {
     QVector<OutputHelper*> renderResults;
     renderResults.reserve(outputs.size());
     for (OutputHelper *helper : std::as_const(outputs)) {
+        if (Q_LIKELY(needsFrameOutput)) {
+            if (helper->qwoutput() != needsFrameOutput)
+                continue;
+            else
+                Q_ASSERT(!helper->framePending());
+        }
+
         if (Q_LIKELY(!forceRender)) {
-            if (!helper->renderable()
-                || Q_UNLIKELY(!WOutputViewportPrivate::get(helper->output())->renderable())
+            if (helper->framePending())
+                continue;
+
+            if (Q_UNLIKELY(!WOutputViewportPrivate::get(helper->output())->renderable())
                 || !helper->output()->output()->isEnabled())
                 continue;
 
+            if (!(helper->needsFrame() || helper->contentIsDirty()))
+                continue;
+
             if (!helper->contentIsDirty()) {
-                if (helper->needsFrame())
-                    renderResults.append(helper);
+                renderResults.append(helper);
                 continue;
             }
         }
@@ -1470,11 +1488,15 @@ static void QQuickAnimatorController_advance(QQuickAnimatorController *ac)
         ac->m_window->update();
 }
 
-void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
+void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
+                                          const QList<OutputHelper *> &outputs,
                                           bool forceRender, bool doCommit)
 {
     Q_ASSERT(rendererList.isEmpty());
     Q_ASSERT(!inRendering);
+    if (!renderEnabled)
+        return;
+
     inRendering = true;
 
     W_Q(WOutputRenderWindow);
@@ -1492,7 +1514,7 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
     Q_EMIT q->beforeRendering();
     runAndClearJobs(&beforeRenderingJobs);
 
-    auto needsCommit = doRenderOutputs(outputs, forceRender);
+    auto needsCommit = doRenderOutputs(needsFrameOutput, outputs, forceRender);
 
     Q_EMIT q->afterRendering();
     runAndClearJobs(&afterRenderingJobs);
@@ -1500,15 +1522,35 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
     if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
         rc()->endFrame();
 
+    // prevent gles2-render exception in wlroots.
+    // wlroots may have render operations after commit, so do
+    // not move the location during the reset operation.
+    // eg: screencopy ext-image-capture
+    resetGlState();
+
+    QList<QPointer<WOutput>> committedOutputs;
     if (doCommit) {
+        committedOutputs.reserve(needsCommit.size());
         for (auto i : std::as_const(needsCommit)) {
-            bool ok = i.first->commit(i.second);
+            if (Q_UNLIKELY(!i.first->framePending())) {
+                if (Q_LIKELY(i.first->commit(i.second))) {
+                    // Make sure the output is still valid after commit
+                    auto output = i.first->output()->output();
+                    if (Q_LIKELY(needsFrameOutput)) {
+                        Q_ASSERT(output->handle() == needsFrameOutput);
+                        if (committedOutputs.isEmpty())
+                            committedOutputs.append(output);
+                    } else if (!committedOutputs.contains(output)) {
+                        committedOutputs.append(output);
+                    }
+                }
+            }
 
             if (i.second->currentBuffer()) {
                 i.second->endRender();
             }
 
-            i.first->resetState(ok);
+            i.first->resetState();
         }
     }
 
@@ -1523,7 +1565,7 @@ void WOutputRenderWindowPrivate::doRender(const QList<OutputHelper *> &outputs,
         glContext->doneCurrent();
 
     inRendering = false;
-    Q_EMIT q->renderEnd();
+    Q_EMIT q->renderEnd(committedOutputs);
 }
 
 // TODO: Support QWindow::setCursor
@@ -1570,23 +1612,8 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
         return;
 
     Q_ASSERT(output->output());
-    bool initialRenderable = false;
-    bool initialContentIsDirty = false;
-    bool initialNeedsFrame = false;
-    for (const auto &helper : std::as_const(d->outputs)) {
-        Q_ASSERT(helper->output() != output);
-        if (helper->qwoutput() == output->output()->handle()) {
-            // For a new viewport, it should initialize state from viewports with the same output.
-            initialRenderable |= helper->renderable();
-            initialContentIsDirty |= helper->contentIsDirty();
-            initialNeedsFrame |= helper->needsFrame();
-        }
-    }
-    auto newOutput = new OutputHelper(output,
-                                      this,
-                                      initialRenderable,
-                                      initialContentIsDirty,
-                                      initialNeedsFrame);
+    const bool containsOutput = d->containsOutput(output->output());
+    auto newOutput = new OutputHelper(output, this, true);
     d->outputs << newOutput;
     d->sortOutputs();
 
@@ -1597,12 +1624,21 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
         Q_EMIT outputViewportInitialized(output);
     }
 
+    if (!containsOutput) {
+        output->output()->safeConnect(&qw_output::notify_frame,
+                                      this,
+                                      qOverload<>(&WOutputRenderWindow::render));
+        connect(newOutput->qwoutput(), &qw_output::notify_needs_frame,
+                output->output(),
+                &WOutput::scheduleFrame);
+    }
+
     if (!d->isInitialized())
         return;
 
     d->updateSceneDPR();
     d->init(newOutput);
-    d->scheduleDoRender();
+    newOutput->update();
 
     if (!newOutput->layers().isEmpty()) {
         if (auto od = WOutputViewportPrivate::get(output)) {
@@ -1624,6 +1660,16 @@ void WOutputRenderWindow::detach(WOutputViewport *output)
 
     auto outputHelper = d->outputs.takeAt(index);
     const auto hasLayer = !outputHelper->layers().isEmpty();
+
+    if (output->output() && !d->containsOutput(output->output())) {
+        bool ok = output->output()->safeDisconnect(this);
+        Q_ASSERT(ok);
+        ok = disconnect(outputHelper->qwoutput(), &qw_output::notify_needs_frame,
+                        output->output(),
+                        &WOutput::scheduleFrame);
+        Q_ASSERT(ok);
+    }
+
     outputHelper->invalidate();
     outputHelper->deleteLater();
 
@@ -1650,10 +1696,12 @@ void WOutputRenderWindow::attach(WOutputLayer *layer, WOutputViewport *output)
 
     auto outputHelper = d->getOutputHelper(output);
     if (outputHelper && outputHelper->attachLayer(wapper))
-        d->scheduleDoRender();
+        outputHelper->scheduleFrame();
 
-    connect(layer, &WOutputLayer::flagsChanged, this, &WOutputRenderWindow::scheduleRender);
-    connect(layer, &WOutputLayer::zChanged, this, &WOutputRenderWindow::scheduleRender);
+    connect(layer, &WOutputLayer::flagsChanged,
+            outputHelper, &WOutputHelper::scheduleFrame);
+    connect(layer, &WOutputLayer::zChanged,
+            outputHelper, &WOutputHelper::scheduleFrame);
 
     if (auto od = WOutputViewportPrivate::get(output)) {
         od->notifyLayersChanged();
@@ -1694,15 +1742,15 @@ void WOutputRenderWindow::detach(WOutputLayer *layer, WOutputViewport *output)
     Q_ASSERT(wapper->outputs().contains(output));
     wapper->outputs().removeOne(output);
 
-    bool ok = layer->disconnect(this);
-    Q_ASSERT(ok);
-
     auto outputHelper = d->getOutputHelper(output);
     if (!outputHelper)
         return;
 
+    bool ok = layer->disconnect(outputHelper);
+    Q_ASSERT(ok);
+
     outputHelper->detachLayer(wapper);
-    d->scheduleDoRender();
+    outputHelper->scheduleFrame();
 
     if (auto od = WOutputViewportPrivate::get(output)) {
         od->notifyLayersChanged();
@@ -1810,6 +1858,11 @@ bool WOutputRenderWindow::inRendering() const
     return d->inRendering;
 }
 
+void WOutputRenderWindow::setRenderEnabled(bool enabled) {
+    Q_D(WOutputRenderWindow);
+    d->renderEnabled = enabled;
+}
+
 QList<QPointer<QQuickItem>> WOutputRenderWindow::paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter)
 {
     QStack<QQuickItem *> nodes;
@@ -1849,7 +1902,7 @@ void WOutputRenderWindow::setDisableLayers(bool newDisableLayers)
 void WOutputRenderWindow::render()
 {
     Q_D(WOutputRenderWindow);
-    d->doRender();
+    d->doRender(qobject_cast<qw_output*>(sender()), d->outputs, false, true);
 }
 
 void WOutputRenderWindow::render(WOutputViewport *output, bool doCommit)
@@ -1858,20 +1911,14 @@ void WOutputRenderWindow::render(WOutputViewport *output, bool doCommit)
     int index = d->indexOfOutputHelper(output);
     Q_ASSERT(index >= 0);
 
-    d->doRender({d->outputs.at(index)}, true, doCommit);
-}
-
-void WOutputRenderWindow::scheduleRender()
-{
-    Q_D(WOutputRenderWindow);
-    d->scheduleDoRender();
+    d->doRender(nullptr, {d->outputs.at(index)}, true, doCommit);
 }
 
 void WOutputRenderWindow::update()
 {
     Q_D(WOutputRenderWindow);
     for (auto o : std::as_const(d->outputs))
-        o->update(); // will scheduleDoRender
+        o->update();
 }
 
 void WOutputRenderWindow::update(WOutputViewport *output)
@@ -1880,7 +1927,6 @@ void WOutputRenderWindow::update(WOutputViewport *output)
     int index = d->indexOfOutputHelper(output);
     Q_ASSERT(index >= 0);
     d->outputs.at(index)->update();
-    d->scheduleDoRender();
 }
 
 qreal WOutputRenderWindow::width() const
@@ -1948,12 +1994,6 @@ bool WOutputRenderWindow::event(QEvent *event)
 {
     Q_D(WOutputRenderWindow);
 
-    if (event->type() == doRenderEventType) {
-        QCoreApplication::removePostedEvents(this, doRenderEventType);
-        d_func()->doRender();
-        return true;
-    }
-
     if (QW::RenderWindow::beforeDisposeEventFilter(this, event)) {
         event->accept();
         QW::RenderWindow::afterDisposeEventFilter(this, event);
@@ -1971,10 +2011,9 @@ bool WOutputRenderWindow::eventFilter(QObject *watched, QEvent *event)
 {
     if (event->isInputEvent() && watched->isQuickItemType()) {
         auto ie = static_cast<QInputEvent*>(event);
-        auto device = WInputDevice::from(ie->device());
-        Q_ASSERT(device);
-        Q_ASSERT(device->seat());
-        if (device->seat()->filterEventBeforeDisposeStage(qobject_cast<QQuickItem*>(watched), ie))
+        auto seat = WSeat::fromInputEvent(ie);
+        if (!seat) return true;
+        if (seat->filterEventBeforeDisposeStage(qobject_cast<QQuickItem*>(watched), ie))
             return true;
     }
 
