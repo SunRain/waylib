@@ -61,6 +61,7 @@
 #include <wxwaylandsurface.h>
 #include <wxdgtoplevelsurface.h>
 #include <wextimagecapturesourcev1impl.h>
+#include <wsecuritycontextmanager.h>
 
 #include <qwallocator.h>
 #include <qwbackend.h>
@@ -1026,6 +1027,7 @@ void Helper::init()
     qmlRegisterType<CaptureContextV1>("Treeland.Protocols", 1, 0, "CaptureContextV1");
     qmlRegisterType<CaptureSourceSelector>("Treeland.Protocols", 1, 0, "CaptureSourceSelector");
 
+    m_server->attach<WSecurityContextManager>();
     m_server->start();
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {
