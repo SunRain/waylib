@@ -322,7 +322,7 @@ qt_add_qml_module(
   OUTPUT_DIRECTORY
   "Waylib/QuickSharedServer"
   INSTALL_LOCATION
-  "${WAYLIB_QML_INSTALL_DIR}"
+  "${WAYLIB_QML_INSTALL_DIR}/Waylib/QuickSharedServer"
   SOURCES
   ${HEADERS}
   ${PRIVATE_HEADERS})
@@ -403,6 +403,18 @@ foreach(target_name ${all_targets})
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
 endforeach()
+
+# Install QML module files manually since qt_add_qml_module INSTALL_LOCATION is ignored
+message(STATUS "Waylib QML module will be installed to ${WAYLIB_QML_INSTALL_DIR}/Waylib/QuickSharedServer")
+install(
+  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Waylib/QuickSharedServer/"
+  DESTINATION "${WAYLIB_QML_INSTALL_DIR}/Waylib/QuickSharedServer"
+  FILES_MATCHING
+  PATTERN "*.qmltypes"
+  PATTERN "qmldir"
+  PATTERN "*.so"
+  PATTERN "*.dll"
+  PATTERN "*.dylib")
 
 configure_package_config_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibSharedServerConfig.cmake.in"
