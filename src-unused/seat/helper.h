@@ -232,6 +232,9 @@ Q_SIGNALS:
 
     void currentModeChanged();
 
+    void blockActivateSurfaceChanged();
+    void requestQuit();
+
 private Q_SLOTS:
     void onShowDesktop();
     void deleteTaskSwitch();
