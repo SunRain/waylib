@@ -23,7 +23,7 @@ option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib"
        OFF)
 
-set(QT_COMPONENTS Core Gui Quick)
+set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
 find_package(
   Qt6
   COMPONENTS ${QT_COMPONENTS}
