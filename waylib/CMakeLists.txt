@@ -23,11 +23,13 @@ option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib"
        OFF)
 
-set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
-find_package(
-  Qt6
-  COMPONENTS ${QT_COMPONENTS}
-  REQUIRED)
+if(QT_VERSION VERSION_GREATER "6.8.0")
+    set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
+else()
+    set(QT_COMPONENTS Core Gui Quick)
+endif()
+
+find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
 
 # 查找ECM (Extra CMake Modules) - 在Qt之后查找以避免冲突
 find_package(ECM QUIET NO_MODULE)
