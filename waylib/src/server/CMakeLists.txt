@@ -377,7 +377,6 @@ set_target_properties(
              POSITION_INDEPENDENT_CODE ON
 )
 
-
 target_link_libraries(
   ${TARGET}
   PUBLIC Qt6::Core
