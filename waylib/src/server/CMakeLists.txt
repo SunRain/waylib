@@ -23,10 +23,10 @@ set(WAYLIB_INCLUDE_INSTALL_DIR
     "${CMAKE_INSTALL_INCLUDEDIR}/waylib"
     CACHE STRING "Install directory for waylib headers")
 
-set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
-find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
+find_package(Qt6 COMPONENTS GuiPrivate QuickPrivate QUIET)
+find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
 
-qt_standard_project_setup(REQUIRES 6.6)
+qt_standard_project_setup(REQUIRES 6.8)
 
 if(QT_KNOWN_POLICY_QTP0001) # this policy was introduced in Qt 6.5
   qt_policy(SET QTP0001 NEW)
@@ -366,14 +366,14 @@ set_target_properties(
              POSITION_INDEPENDENT_CODE ON
 )
 
-set(QT_LIBRARIES "")
-foreach(temp ${QT_COMPONENTS})
-  list(APPEND QT_LIBRARIES "Qt6::${temp}")
-endforeach()
 
 target_link_libraries(
   ${TARGET}
-  PRIVATE ${QT_LIBRARIES}
+  PRIVATE Qt6::Core
+          Qt6::Gui
+          Qt6::Quick
+          Qt6::GuiPrivate
+          Qt6::QuickPrivate
           PkgConfig::WLROOTS
           PkgConfig::LIBDRM
           PkgConfig::WAYLAND
