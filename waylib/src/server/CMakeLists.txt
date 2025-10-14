@@ -23,11 +23,7 @@ set(WAYLIB_INCLUDE_INSTALL_DIR
     "${CMAKE_INSTALL_INCLUDEDIR}/waylib"
     CACHE STRING "Install directory for waylib headers")
 
-if(QT_VERSION VERSION_GREATER "6.8.0")
-    set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
-else()
-    set(QT_COMPONENTS Core Gui Quick)
-endif()
+set(QT_COMPONENTS Core Gui Quick GuiPrivate QuickPrivate)
 find_package(Qt6 COMPONENTS ${QT_COMPONENTS} REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.6)
@@ -51,21 +47,32 @@ pkg_search_module(EGL REQUIRED IMPORTED_TARGET egl)
 add_compile_definitions(WLR_PRIVATE=)
 
 ws_generate(
-  server wayland-protocols unstable/text-input/text-input-unstable-v1.xml
-  text-input-unstable-v1-protocol)
+    server
+    wayland-protocols
+    unstable/text-input/text-input-unstable-v1.xml
+    text-input-unstable-v1-protocol
+)
 
 ws_generate(
-  server wayland-protocols
-  ${CMAKE_CURRENT_LIST_DIR}/protocols/private/text-input-unstable-v2.xml
-  text-input-unstable-v2-protocol)
+    server
+    wayland-protocols
+    ${CMAKE_CURRENT_LIST_DIR}/protocols/private/text-input-unstable-v2.xml
+    text-input-unstable-v2-protocol
+)
 
 ws_generate(
-  server wayland-protocols unstable/xdg-output/xdg-output-unstable-v1.xml
-  xdg-output-unstable-v1-protocol)
+    server
+    wayland-protocols
+    unstable/xdg-output/xdg-output-unstable-v1.xml
+    xdg-output-unstable-v1-protocol
+)
 
 ws_generate(
-  server wayland-protocols staging/color-management/color-management-v1.xml
-  color-management-v1-protocol)
+    server
+    wayland-protocols
+    staging/color-management/color-management-v1.xml
+    color-management-v1-protocol
+)
 
 ws_generate(
     server
@@ -76,15 +83,19 @@ ws_generate(
 
 #TODO: Remove after wlroots 0.20
 ws_generate(
-  server wayland-protocols
-  staging/ext-image-capture-source/ext-image-capture-source-v1.xml
-  ext-image-capture-source-v1-protocol)
+    server
+    wayland-protocols
+    staging/ext-image-capture-source/ext-image-capture-source-v1.xml
+    ext-image-capture-source-v1-protocol
+)
 
 # TODO: Remove after wlroots 0.20
 ws_generate(
-  server wayland-protocols
-  staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml
-  ext-foreign-toplevel-list-v1-protocol)
+    server
+    wayland-protocols
+    staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml
+    ext-foreign-toplevel-list-v1-protocol
+)
 
 set(SOURCES
     kernel/wbackend.cpp
@@ -96,11 +107,14 @@ set(SOURCES
     kernel/wserver.cpp
     kernel/wsurface.cpp
     kernel/wtoplevelsurface.cpp
+
     kernel/wtypes.cpp
+
     kernel/woutputlayout.cpp
     kernel/wxcursorimage.cpp
     kernel/wglobal.cpp
     kernel/wsocket.cpp
+
     qtquick/wsurfaceitem.cpp
     qtquick/woutputhelper.cpp
     qtquick/woutputrenderwindow.cpp
@@ -123,11 +137,13 @@ set(SOURCES
     qtquick/winputpopupsurfaceitem.cpp
     qtquick/wsgtextureprovider.cpp
     qtquick/wtextureproviderprovider.cpp
+
     qtquick/private/wquickcoordmapper.cpp
     qtquick/private/wquicksocketattached.cpp
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wbufferrenderer.cpp
     qtquick/private/wrenderbuffernode.cpp
+
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.c
@@ -141,6 +157,7 @@ set(SOURCES
     utils/wcursorimage.cpp
     utils/wextimagecapturesourcev1impl.cpp
     utils/wbufferdumper.cpp
+
     platformplugin/qwlrootsintegration.cpp
     platformplugin/qwlrootscreen.cpp
     platformplugin/qwlrootswindow.cpp
@@ -150,6 +167,7 @@ set(SOURCES
     protocols/wxdgsurface.cpp
     protocols/wxdgtoplevelsurface.cpp
     protocols/wxdgpopupsurface.cpp
+
     protocols/wxwayland.cpp
     protocols/wxwaylandsurface.cpp
     protocols/wlayersurface.cpp
@@ -164,8 +182,7 @@ set(SOURCES
     protocols/private/wtextinputv2.cpp
     protocols/private/wtextinputv3.cpp
     protocols/private/wvirtualkeyboardv1.cpp
-    protocols/ext_foreign_toplevel_image_capture_source.c # TODO: Remove after
-                                                          # wlroots 0.20
+    protocols/ext_foreign_toplevel_image_capture_source.c #TODO: Remove after wlroots 0.20
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
@@ -190,6 +207,7 @@ set(HEADERS
     kernel/wxcursorimage.h
     kernel/wsocket.h
     kernel/wtoplevelsurface.h
+
     kernel/WOutput
     kernel/WServer
     kernel/WServerInterface
@@ -200,6 +218,7 @@ set(HEADERS
     kernel/WEvent
     kernel/WInputEvent
     kernel/WSurface
+
     qtquick/wsurfaceitem.h
     qtquick/WSurfaceItem
     qtquick/woutputhelper.h
@@ -223,6 +242,7 @@ set(HEADERS
     qtquick/wqmlcreator.h
     qtquick/wsgtextureprovider.h
     qtquick/wtextureproviderprovider.h
+
     utils/wtools.h
     utils/wthreadutils.h
     utils/WThreadUtils
@@ -295,22 +315,16 @@ set(PRIVATE_HEADERS
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.h # TODO:
-                                                                          # Remove
-                                                                          # after
-                                                                          # wlroots
-                                                                          # 0.20
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.h # TODO:
-                                                                           # Remove
-                                                                           # after
-                                                                           # wlroots
-                                                                           # 0.20
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.h #TODO: Remove after wlroots 0.20
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.h #TODO: Remove after wlroots 0.20
+
     protocols/private/winputmethodv2_p.h
     protocols/private/wtextinput_p.h
     protocols/private/wtextinputv1_p.h
     protocols/private/wtextinputv2_p.h
     protocols/private/wtextinputv3_p.h
-    protocols/private/wvirtualkeyboardv1_p.h)
+    protocols/private/wvirtualkeyboardv1_p.h
+)
 
 if(NOT DISABLE_XWAYLAND)
   list(APPEND SOURCES protocols/wxwayland.cpp protocols/wxwaylandsurface.cpp)
@@ -322,22 +336,24 @@ add_library(${TARGET} SHARED ${SOURCES})
 add_library(Waylib::SharedServer ALIAS ${TARGET})
 
 qt_add_qml_module(
-  ${TARGET}
-  URI
-  Waylib.QuickSharedServer
-  VERSION
-  "1.0" # Qt bug: The major version must be larger than 0
-  OUTPUT_DIRECTORY
-  "Waylib/QuickSharedServer"
-  INSTALL_LOCATION
-  "${WAYLIB_QML_INSTALL_DIR}/Waylib/QuickSharedServer"
+    ${TARGET}
+    URI Waylib.QuickSharedServer
+    VERSION "1.0" # Qt bug: The major version must be larger than 0
+    OUTPUT_DIRECTORY
+      "Waylib/QuickSharedServer"
+    INSTALL_LOCATION
+      "${WAYLIB_QML_INSTALL_DIR}/Waylib/QuickSharedServer"
   SOURCES
-  ${HEADERS}
-  ${PRIVATE_HEADERS})
+   ${HEADERS}
+   ${PRIVATE_HEADERS}
+  )
 
-target_compile_definitions(
-  ${TARGET} PRIVATE WLR_USE_UNSTABLE LIBWAYLIB_SERVER_LIBRARY
-                    QT_NO_SIGNALS_SLOTS_KEYWORDS)
+target_compile_definitions(${TARGET}
+    PRIVATE
+    WLR_USE_UNSTABLE
+    LIBWAYLIB_SERVER_LIBRARY
+    QT_NO_SIGNALS_SLOTS_KEYWORDS
+)
 
 set_target_properties(
   ${TARGET}
@@ -346,9 +362,9 @@ set_target_properties(
              EXPORT_NAME SharedServer
              PUBLIC_HEADER "${HEADERS}"
              # PRIVATE_HEADER "${PRIVATE_HEADERS}"
-             # CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER
-             # DESTINATION
-             POSITION_INDEPENDENT_CODE ON)
+             # CMake Warning has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION
+             POSITION_INDEPENDENT_CODE ON
+)
 
 set(QT_LIBRARIES "")
 foreach(temp ${QT_COMPONENTS})
@@ -365,32 +381,43 @@ target_link_libraries(
           PkgConfig::PIXMAN
           PkgConfig::XKBCOMMON
           PkgConfig::XCB
-          PkgConfig::EGL)
+          PkgConfig::EGL
+)
 
-target_link_libraries(${TARGET} PUBLIC QWlroots::QWlroots)
+target_link_libraries(${TARGET}
+    PUBLIC
+        QWlroots::QWlroots
+)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-target_include_directories(
-  ${TARGET}
-  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernel>
-         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick>
-         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private>
-         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
-         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
-         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>
-         $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
-  PRIVATE ${Qt6Gui_PRIVATE_INCLUDE_DIRS} ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
-          ${Qt6EglSupport_PRIVATE_INCLUDE_DIRS}
-          ${Qt6InputSupport_PRIVATE_INCLUDE_DIRS})
+target_include_directories(${TARGET}
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernel>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>
+        $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
+    PRIVATE
+        ${Qt6Gui_PRIVATE_INCLUDE_DIRS}
+        ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
+        ${Qt6EglSupport_PRIVATE_INCLUDE_DIRS}
+        ${Qt6InputSupport_PRIVATE_INCLUDE_DIRS}
+)
 
-target_link_directories(
-  ${TARGET} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>)
+target_link_directories(${TARGET}
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
+)
 
-if(WAYLIB_USE_PERCOMPILE_HEADERS)
-  target_precompile_headers(${TARGET} PRIVATE
-                            "$<$<COMPILE_LANGUAGE:CXX>:pch/pch.hxx>")
+if (WAYLIB_USE_PERCOMPILE_HEADERS)
+    target_precompile_headers(${TARGET}
+        PRIVATE
+        "$<$<COMPILE_LANGUAGE:CXX>:pch/pch.hxx>"
+    )
 endif()
 
 install(
@@ -403,13 +430,13 @@ install(
 # This works around the Qt CMake QML module export issue
 get_directory_property(all_targets BUILDSYSTEM_TARGETS)
 foreach(target_name ${all_targets})
-  if(target_name MATCHES "^${TARGET}_resources_")
-    install(
-      TARGETS ${target_name}
-      EXPORT WaylibServerTargets
-      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-  endif()
+    if(target_name MATCHES "^${TARGET}_resources_")
+        install(TARGETS ${target_name}
+            EXPORT WaylibServerTargets
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        )
+    endif()
 endforeach()
 
 # Install QML module files manually since qt_add_qml_module INSTALL_LOCATION is ignored
