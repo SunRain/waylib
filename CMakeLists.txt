@@ -136,6 +136,7 @@ enable_testing(true)
 # add_subdirectory(src) add_subdirectory(misc) add_subdirectory(tests)
 
 if(BUILD_TREELAND_EXAMPLES)
+  find_package(Qt6 REQUIRED COMPONENTS GuiPrivate WaylandClientPrivate QuickPrivate)
   add_subdirectory(examples)
 endif()
 
