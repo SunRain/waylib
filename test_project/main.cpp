@@ -1,20 +1,10 @@
-#include <QApplication>
-#include <QDebug>
-
-#include "waylibserver/wglobal.h"
-#include <waylibserver/wserver.h>
+#include <wserver.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-int main(int argc, char *argv[])
+int main()
 {
-    QApplication app(argc, argv);
-
-    WServer server;
-    server.start();
-
-    qDebug() << "Waylib package test successful!";
-    qDebug() << "Waylib::SharedServer target found and linked.";
-
+    // 仅用于验证“真实链接到 WaylibShared::SharedServer”（避免运行时依赖 Wayland 环境）
+    (void)&WServer::staticMetaObject;
     return 0;
 }
