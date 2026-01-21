@@ -91,3 +91,6 @@ obj-*-linux-gnu/
 
 .kilocode/
 
+# AI/workflow artifacts
+.spec-workflow/
+helloagents/
