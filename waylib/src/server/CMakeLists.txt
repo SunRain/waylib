@@ -3,7 +3,7 @@ set(TARGET WaylibSharedServer)
 # 使用KDEInstallDirs提供的变量，如果ECM可用的话
 if(ECM_FOUND AND DEFINED KDE_INSTALL_CMAKEPACKAGEDIR)
   set(WAYLIB_CMAKE_INSTALL_DIR
-      "${KDE_INSTALL_CMAKEPACKAGEDIR}/Waylib"
+      "${KDE_INSTALL_CMAKEPACKAGEDIR}/WaylibShared"
       CACHE STRING "Install directory for waylib cmake files")
   set(WAYLIB_QML_INSTALL_DIR
       "${KDE_INSTALL_QMLDIR}"
@@ -11,7 +11,7 @@ if(ECM_FOUND AND DEFINED KDE_INSTALL_CMAKEPACKAGEDIR)
   message(STATUS "Using KDE install directories for Waylib")
 else()
   set(WAYLIB_CMAKE_INSTALL_DIR
-      "${CMAKE_INSTALL_LIBDIR}/cmake/Waylib"
+      "${CMAKE_INSTALL_LIBDIR}/cmake/WaylibShared"
       CACHE STRING "Install directory for waylib cmake files")
   set(WAYLIB_QML_INSTALL_DIR
       "/usr/lib/qt6/qml"
@@ -20,11 +20,24 @@ else()
 endif()
 
 set(WAYLIB_INCLUDE_INSTALL_DIR
-    "${CMAKE_INSTALL_INCLUDEDIR}/waylib"
+    "${CMAKE_INSTALL_INCLUDEDIR}/waylibshared/waylibserver"
     CACHE STRING "Install directory for waylib headers")
 
+# 兼容迁移：老的默认值为 "${CMAKE_INSTALL_INCLUDEDIR}/waylib"，为了避免与 treeland 同前缀安装冲突，
+# 若 cache 中仍为旧默认值则自动切换到新的命名空间目录；用户自定义值保持不变。
+set(_WAYLIBSERVER_DEFAULT_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/waylibshared/waylibserver")
+set(_WAYLIBSERVER_LEGACY_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/waylib")
+if(DEFINED WAYLIB_INCLUDE_INSTALL_DIR AND WAYLIB_INCLUDE_INSTALL_DIR STREQUAL _WAYLIBSERVER_LEGACY_INCLUDEDIR)
+  set(WAYLIB_INCLUDE_INSTALL_DIR
+      "${_WAYLIBSERVER_DEFAULT_INCLUDEDIR}"
+      CACHE STRING "Install directory for waylib headers"
+      FORCE)
+endif()
+unset(_WAYLIBSERVER_DEFAULT_INCLUDEDIR)
+unset(_WAYLIBSERVER_LEGACY_INCLUDEDIR)
+
 find_package(Qt6 COMPONENTS GuiPrivate QuickPrivate QUIET)
-find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
+find_package(Qt6 COMPONENTS Core Gui Quick QmlIntegration REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -328,21 +341,19 @@ set(PRIVATE_HEADERS
 
 if(NOT DISABLE_XWAYLAND)
   list(APPEND SOURCES protocols/wxwayland.cpp protocols/wxwaylandsurface.cpp)
-
-  list(APPEND HEADERS protocols/wxwayland.h protocols/wxwaylandsurface.h)
 endif()
 
 add_library(${TARGET} SHARED ${SOURCES})
-add_library(Waylib::SharedServer ALIAS ${TARGET})
+add_library(WaylibShared::SharedServer ALIAS ${TARGET})
 
 qt_add_qml_module(
     ${TARGET}
-    URI Waylib.QuickSharedServer
+    URI WaylibShared.QuickSharedServer
     VERSION "1.0" # Qt bug: The major version must be larger than 0
     OUTPUT_DIRECTORY
-      "Waylib/QuickSharedServer"
+      "WaylibShared/QuickSharedServer"
     INSTALL_LOCATION
-      "${WAYLIB_QML_INSTALL_DIR}/Waylib/QuickSharedServer"
+      "${WAYLIB_QML_INSTALL_DIR}/WaylibShared/QuickSharedServer"
   SOURCES
    ${HEADERS}
    ${PRIVATE_HEADERS}
@@ -369,10 +380,11 @@ set_target_properties(
 
 target_link_libraries(
   ${TARGET}
-  PRIVATE Qt6::Core
-          Qt6::Gui
-          Qt6::Quick
-          Qt6::GuiPrivate
+  PUBLIC Qt6::Core
+         Qt6::Gui
+         Qt6::Quick
+         Qt6::QmlIntegration
+  PRIVATE Qt6::GuiPrivate
           Qt6::QuickPrivate
           PkgConfig::WLROOTS
           PkgConfig::LIBDRM
@@ -386,7 +398,7 @@ target_link_libraries(
 
 target_link_libraries(${TARGET}
     PUBLIC
-        QWlroots::QWlroots
+        WaylibSharedQWlroots::QWlroots
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -440,10 +452,10 @@ foreach(target_name ${all_targets})
 endforeach()
 
 # Install QML module files manually since qt_add_qml_module INSTALL_LOCATION is ignored
-message(STATUS "Waylib QML module will be installed to ${WAYLIB_QML_INSTALL_DIR}/Waylib/QuickSharedServer")
+message(STATUS "WaylibShared QML module will be installed to ${WAYLIB_QML_INSTALL_DIR}/WaylibShared/QuickSharedServer")
 install(
-  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Waylib/QuickSharedServer/"
-  DESTINATION "${WAYLIB_QML_INSTALL_DIR}/Waylib/QuickSharedServer"
+  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/WaylibShared/QuickSharedServer/"
+  DESTINATION "${WAYLIB_QML_INSTALL_DIR}/WaylibShared/QuickSharedServer"
   FILES_MATCHING
   PATTERN "*.qmltypes"
   PATTERN "qmldir"
@@ -465,7 +477,7 @@ write_basic_package_version_file(
 export(
   EXPORT WaylibSharedServerTargets
   FILE "${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerTargets.cmake"
-  NAMESPACE Waylib::)
+  NAMESPACE WaylibShared::)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/WaylibSharedServerConfigVersion.cmake
@@ -475,8 +487,8 @@ install(
   EXPORT WaylibSharedServerTargets
   FILE WaylibSharedServerTargets.cmake
   DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
-  NAMESPACE Waylib::)
+  NAMESPACE WaylibShared::)
 
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
-                     "qwlroots, Qt6Gui, Qt6Quick")
+                     "waylibshared-qwlroots, Qt6Gui, Qt6Quick, Qt6QmlIntegration")

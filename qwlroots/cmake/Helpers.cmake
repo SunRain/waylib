@@ -1,8 +1,9 @@
 function(add_cmake_module name library include_dir)
+    set(_cmake_install_dir "${CMAKE_INSTALL_LIBDIR}/cmake/${name}")
     include(CMakePackageConfigHelpers)
     configure_package_config_file(${PROJECT_SOURCE_DIR}/src/cmake/CMakeConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/${name}Config.cmake
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${name}
+        INSTALL_DESTINATION ${_cmake_install_dir}
     )
     write_basic_package_version_file(
       ${CMAKE_CURRENT_BINARY_DIR}/${name}ConfigVersion.cmake
@@ -19,13 +20,13 @@ function(add_cmake_module name library include_dir)
     install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/${name}Config.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/${name}ConfigVersion.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${name}
+        DESTINATION ${_cmake_install_dir}
     )
 
     install(EXPORT ${name}Targets
         FILE ${name}Targets.cmake
         NAMESPACE ${name}::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${name}
+        DESTINATION ${_cmake_install_dir}
     )
 endfunction()
 

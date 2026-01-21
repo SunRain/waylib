@@ -184,12 +184,17 @@ protected:
     W_DECLARE_PRIVATE(WWrapObject)
 };
 
-class WAYLIB_SERVER_EXPORT WGlobal {
-    Q_GADGET
+class WAYLIB_SERVER_EXPORT WGlobal : public QObject {
+    Q_OBJECT
     QML_NAMED_ELEMENT(Waylib)
     QML_UNCREATABLE("Use for enums")
 
 public:
+    explicit WGlobal(QObject *parent = nullptr)
+        : QObject(parent)
+    {
+    }
+
     enum class CursorShape {
         Default = Qt::CustomCursor + 1,
         Invalid,

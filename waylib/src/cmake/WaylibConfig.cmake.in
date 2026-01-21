@@ -3,44 +3,43 @@
 include(CMakeFindDependencyMacro)
 
 # 支持的组件列表
-set(Waylib_KNOWN_COMPONENTS SharedServer)
+set(WaylibShared_KNOWN_COMPONENTS SharedServer)
 
 # 设置默认组件（如果没有指定组件）
-if(NOT Waylib_FIND_COMPONENTS)
-    set(Waylib_FIND_COMPONENTS SharedServer)
+if(NOT WaylibShared_FIND_COMPONENTS)
+    set(WaylibShared_FIND_COMPONENTS SharedServer)
 endif()
 
 # 检查请求的组件是否有效
-foreach(component ${Waylib_FIND_COMPONENTS})
-    if(NOT component IN_LIST Waylib_KNOWN_COMPONENTS)
-        set(Waylib_FOUND False)
-        set(Waylib_NOT_FOUND_MESSAGE "Unknown component: ${component}")
+foreach(component ${WaylibShared_FIND_COMPONENTS})
+    if(NOT component IN_LIST WaylibShared_KNOWN_COMPONENTS)
+        set(WaylibShared_FOUND False)
+        set(WaylibShared_NOT_FOUND_MESSAGE "Unknown component: ${component}")
         return()
     endif()
 endforeach()
 
 # 加载请求的组件
-foreach(component ${Waylib_FIND_COMPONENTS})
+foreach(component ${WaylibShared_FIND_COMPONENTS})
     if(component STREQUAL "SharedServer")
         include(${CMAKE_CURRENT_LIST_DIR}/WaylibSharedServerConfig.cmake)
-        if(NOT TARGET Waylib::SharedServer)
-            set(Waylib_FOUND False)
-            set(Waylib_NOT_FOUND_MESSAGE "Component ${component} not found")
+        if(NOT TARGET WaylibShared::SharedServer)
+            set(WaylibShared_FOUND False)
+            set(WaylibShared_NOT_FOUND_MESSAGE "Component ${component} not found")
             return()
         endif()
-        set(Waylib_${component}_FOUND TRUE)
+        set(WaylibShared_${component}_FOUND TRUE)
     endif()
 endforeach()
 
 # 检查所有组件是否都已找到
-set(Waylib_FOUND TRUE)
-foreach(component ${Waylib_FIND_COMPONENTS})
-    if(NOT Waylib_${component}_FOUND)
-        set(Waylib_FOUND False)
-        set(Waylib_NOT_FOUND_MESSAGE "Component ${component} not found")
+set(WaylibShared_FOUND TRUE)
+foreach(component ${WaylibShared_FIND_COMPONENTS})
+    if(NOT WaylibShared_${component}_FOUND)
+        set(WaylibShared_FOUND False)
+        set(WaylibShared_NOT_FOUND_MESSAGE "Component ${component} not found")
         return()
     endif()
 endforeach()
 
-check_required_components(Waylib)
-
+check_required_components(WaylibShared)

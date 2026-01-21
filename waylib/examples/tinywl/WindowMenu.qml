@@ -3,7 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
-import Waylib.QuickSharedServer
+import WaylibShared.QuickSharedServer
 import Tinywl
 
 Menu {
@@ -72,4 +72,3 @@ Menu {
         onTriggered: surface.shellSurface.close()
     }
 }
-

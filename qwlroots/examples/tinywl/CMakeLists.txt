@@ -8,7 +8,7 @@ if(PROJECT_IS_TOP_LEVEL) # if build as a separated project
     set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_AUTOMOC ON)
     set(CMAKE_AUTORCC ON)
-    find_package(QWlroots REQUIRED)
+    find_package(WaylibSharedQWlroots REQUIRED)
 endif()
 
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui REQUIRED)
@@ -21,6 +21,6 @@ add_executable(${TARGET}
 
 target_link_libraries(${TARGET}
     PRIVATE
-    QWlroots::QWlroots
+    WaylibSharedQWlroots::QWlroots
     Qt${QT_VERSION_MAJOR}::Gui
 )

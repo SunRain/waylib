@@ -72,7 +72,7 @@ target_link_libraries(${TARGET}
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::QuickPrivate
-    Waylib::SharedServer
+    WaylibShared::SharedServer
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )

@@ -4,7 +4,7 @@ add_executable(test_wwrappointer wrapobject.h main.cpp)
 
 target_link_libraries(test_wwrappointer
     PRIVATE
-        Waylib::SharedServer
+        WaylibShared::SharedServer
         Qt::Test
 )
 

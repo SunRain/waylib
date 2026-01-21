@@ -1,5 +1,5 @@
 set(TARGET qwlroots)
-set(CMAKE_NAME QWlroots)
+set(CMAKE_NAME WaylibSharedQWlroots)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_compile_options(-Wall -Wextra -Werror=unused-variable -Werror=unused-parameter)
@@ -37,6 +37,13 @@ pkg_get_variable(WLR_HAVE_SESSION ${wlr} have_session)
 setup_package_version_variables(WLROOTS)
 include(CMakePackageConfigHelpers)
 configure_file(${PROJECT_SOURCE_DIR}/src/cmake/qwconfig.h.in generate/qwconfig.h @ONLY)
+
+# Install layout (avoid conflicts with other projects)
+set(QWLROOTS_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/waylibshared/qwlroots")
+set(QWLROOTS_INSTALL_FULL_INCLUDEDIR
+    "${CMAKE_INSTALL_FULL_INCLUDEDIR}/waylibshared/qwlroots")
+set(QWLROOTS_CMAKE_INSTALL_DIR
+    "${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_NAME}")
 
 if ((NOT WLR_HAVE_XWAYLAND) AND (NOT DISABLE_XWAYLAND))
     message(FATAL_ERROR "wlroots lacks support for xwayland, and `DISABLE_XWAYLAND` set to OFF!")
@@ -242,13 +249,15 @@ else()
     )
 endif()
 add_library(QWlroots::QWlroots ALIAS ${TARGET})
+add_library(${CMAKE_NAME}::QWlroots ALIAS ${TARGET})
 
 set_target_properties(${TARGET}
     PROPERTIES
         VERSION ${CMAKE_PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
         PUBLIC_HEADER "${HEADERS}"
-        EXPORT_NAME ${CMAKE_NAME}
+        EXPORT_NAME QWlroots
+        OUTPUT_NAME waylibshared-qwlroots
         POSITION_INDEPENDENT_CODE ON
 )
 
@@ -288,7 +297,7 @@ target_include_directories(${TARGET}
 
 target_include_directories(${TARGET}
     INTERFACE
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${TARGET}>
+        $<INSTALL_INTERFACE:${QWLROOTS_INSTALL_INCLUDEDIR}>
 )
 
 target_link_directories(${TARGET}
@@ -303,27 +312,17 @@ install(TARGETS ${TARGET}
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER
         COMPONENT Development
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${TARGET}
+        DESTINATION ${QWLROOTS_INSTALL_INCLUDEDIR}
 )
 
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
-add_cmake_module(${CMAKE_NAME} ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET})
-add_pkgconfig_module(${TARGET} ${TARGET} ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${TARGET}
+add_cmake_module(${CMAKE_NAME} ${TARGET} ${QWLROOTS_INSTALL_FULL_INCLUDEDIR})
+add_pkgconfig_module(waylibshared-qwlroots waylibshared-qwlroots
+    ${QWLROOTS_INSTALL_FULL_INCLUDEDIR}
     "${wlr} = ${WLROOTS_VERSION}, pixman-1, wayland-protocols, wlr-protocols, xkbcommon, Qt${QT_VERSION_MAJOR}Core"
 )
 
 install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_NAME}Config.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_NAME}
-)
-
-install(FILES
     ${PROJECT_SOURCE_DIR}/cmake/WaylandScannerHelpers.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_NAME}
-)
-
-install(EXPORT ${CMAKE_NAME}Targets
-    FILE ${CMAKE_NAME}Targets.cmake
-    NAMESPACE ${CMAKE_NAME}::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_NAME}
+    DESTINATION ${QWLROOTS_CMAKE_INSTALL_DIR}
 )

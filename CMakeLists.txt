@@ -68,12 +68,12 @@ if(WITH_SUBMODULE_WAYLIB)
   add_subdirectory(waylib)
   list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
 
-  # 设置Waylib_DIR以便父项目可以找到Waylib
-  set(Waylib_DIR
+  # 设置 WaylibShared_DIR 以便父项目可以找到 WaylibShared
+  set(WaylibShared_DIR
       "${CMAKE_CURRENT_BINARY_DIR}/waylib/src"
-      CACHE PATH "Waylib CMake config directory" FORCE)
+      CACHE PATH "WaylibShared CMake config directory" FORCE)
 else()
-  find_package(Waylib REQUIRED COMPONENTS SharedServer)
+  find_package(WaylibShared REQUIRED COMPONENTS SharedServer)
 endif()
 
 set(QML_IMPORT_PATH

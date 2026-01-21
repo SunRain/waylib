@@ -37,7 +37,7 @@ target_link_libraries(surface-delegate
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
-    Waylib::SharedServer
+    WaylibShared::SharedServer
     PkgConfig::PIXMAN
 )
 

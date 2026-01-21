@@ -11,6 +11,7 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public WToplevelSurface
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(WaylandXdgSurface)
+    QML_UNCREATABLE("Only create in C++")
 
 protected:
     explicit WXdgSurface(WToplevelSurfacePrivate &d, QObject *parent = nullptr);

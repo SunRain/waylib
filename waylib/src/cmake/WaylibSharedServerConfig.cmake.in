@@ -4,7 +4,7 @@ include(CMakeFindDependencyMacro)
 
 # 查找依赖项
 find_dependency(Qt6
-    COMPONENTS Core Gui Quick QuickControls2
+    COMPONENTS Core Gui Quick QuickControls2 QmlIntegration
     REQUIRED
 )
 
@@ -17,16 +17,16 @@ pkg_check_modules(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl)
 
-# 查找 QWlroots 依赖
-find_dependency(QWlroots REQUIRED)
+# 查找 WaylibSharedQWlroots 依赖
+find_dependency(WaylibSharedQWlroots REQUIRED)
 
 # 包含导出的目标
 include("${CMAKE_CURRENT_LIST_DIR}/WaylibSharedServerTargets.cmake")
 
 # 检查目标是否存在
-if(NOT TARGET Waylib::SharedServer)
+if(NOT TARGET WaylibShared::SharedServer)
     set(WaylibSharedServer_FOUND FALSE)
-    set(WaylibSharedServer_NOT_FOUND_MESSAGE "Waylib::SharedServer target not found")
+    set(WaylibSharedServer_NOT_FOUND_MESSAGE "WaylibShared::SharedServer target not found")
     return()
 endif()
 

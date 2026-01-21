@@ -58,7 +58,7 @@ if(WITH_SUBMODULE_QWLROOTS)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../qwlroots qwlroots)
   message("Using QWlroots from submodule")
 else()
-  find_package(QWlroots REQUIRED)
+  find_package(WaylibSharedQWlroots REQUIRED)
 endif()
 
 if(DISABLE_XWAYLAND)
