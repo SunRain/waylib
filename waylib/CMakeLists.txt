@@ -24,7 +24,9 @@ option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib"
        OFF)
 
 find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
-find_package(Qt6 COMPONENTS GuiPrivate QuickPrivate QUIET)
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+  find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
+endif()
 
 # 查找ECM (Extra CMake Modules) - 在Qt之后查找以避免冲突
 find_package(ECM QUIET NO_MODULE)

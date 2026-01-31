@@ -36,7 +36,9 @@ endif()
 unset(_WAYLIBSERVER_DEFAULT_INCLUDEDIR)
 unset(_WAYLIBSERVER_LEGACY_INCLUDEDIR)
 
-find_package(Qt6 COMPONENTS GuiPrivate QuickPrivate QUIET)
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+  find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
+endif()
 find_package(Qt6 COMPONENTS Core Gui Quick QmlIntegration REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
