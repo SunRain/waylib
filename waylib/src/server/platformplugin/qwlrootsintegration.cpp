@@ -504,7 +504,7 @@ QPlatformTheme *QWlrootsIntegration::createPlatformTheme(const QString &name) co
 QPlatformOffscreenSurface *QWlrootsIntegration::createPlatformOffscreenSurface(QOffscreenSurface *surface) const
 {
     if (QW::OffscreenSurface::check(surface))
-        return new OffscreenSurface(surface);
+        return new ::Waylib::Server::OffscreenSurface(surface);
 
     return CALL_PROXY(createPlatformOffscreenSurface, surface);
 }
