@@ -20,6 +20,7 @@
 > 说明：
 > - `pure`：仅触达 `waylib/`/`qwlroots/`，直接合入。
 > - `mixed`：同时触达其他路径，仅保留 `waylib/`/`qwlroots/` 的 diff 合入，其余路径变更全部丢弃；被丢弃路径见下文清单。
+> - 注：`waylibshared-merge` 分支曾对该区间提交做过 commit message 改写（仅补充说明，不改变补丁内容），因此 `waylib-shared` 列为当前 hash，旧 hash 以 `(rewritten-before: <old>)` 保留。
 
 ---
 
@@ -27,18 +28,18 @@
 
 | # | treeland | waylib-shared | 类型 | 路径 | 说明 |
 |---:|---|---|---|---|---|
-| 1 | d934caa | 2f213647 | mixed | waylib | mixed：排除 34 个非目标路径文件 |
-| 2 | da62dec | 27a35e4a | pure | waylib | pure |
-| 3 | 7353097 | 471fdd7a | mixed | waylib | mixed：排除 1 个非目标路径文件 |
-| 4 | 6518589 | 5716e010 | pure | qwlroots | pure |
-| 5 | 82e447b | 0014f564 | pure | waylib | pure |
-| 6 | cd4c365 | cf034512 | mixed | waylib | mixed：排除 1 个非目标路径文件 |
-| 7 | b9c988d | 8d8690c4 | pure | waylib | pure |
-| 8 | 646ee9f | e24fc793 | mixed | waylib | mixed：排除 13 个非目标路径文件 |
-| 9 | 64ad615 | c6f8b282 | pure | waylib | pure |
-| 10 | ce633b8 | 1b95cfcf | pure | qwlroots | pure |
-| 11 | b55f2bd | 6ed51953 | mixed | waylib | mixed：排除 2 个非目标路径文件 |
-| 12 | c03310d | ce266d5a | mixed | waylib | mixed：排除 4 个非目标路径文件 |
+| 1 | d934caa | 990a4cf1 (rewritten-before: 2f213647) | mixed | waylib | mixed：排除 34 个非目标路径文件 |
+| 2 | da62dec | 0e590673 (rewritten-before: 27a35e4a) | pure | waylib | pure |
+| 3 | 7353097 | 42f9c05f (rewritten-before: 471fdd7a) | mixed | waylib | mixed：排除 1 个非目标路径文件 |
+| 4 | 6518589 | e92600f3 (rewritten-before: 5716e010) | pure | qwlroots | pure |
+| 5 | 82e447b | 034fd92a (rewritten-before: 0014f564) | pure | waylib | pure |
+| 6 | cd4c365 | 80198925 (rewritten-before: cf034512) | mixed | waylib | mixed：排除 1 个非目标路径文件 |
+| 7 | b9c988d | 5e3195eb (rewritten-before: 8d8690c4) | pure | waylib | pure |
+| 8 | 646ee9f | 214e9f04 (rewritten-before: e24fc793) | mixed | waylib | mixed：排除 13 个非目标路径文件 |
+| 9 | 64ad615 | d7336274 (rewritten-before: c6f8b282) | pure | waylib | pure |
+| 10 | ce633b8 | f1601634 (rewritten-before: 1b95cfcf) | pure | qwlroots | pure |
+| 11 | b55f2bd | 9342e81e (rewritten-before: 6ed51953) | mixed | waylib | mixed：排除 2 个非目标路径文件 |
+| 12 | c03310d | 669efea9 (rewritten-before: ce266d5a) | mixed | waylib | mixed：排除 4 个非目标路径文件 |
 | 13 | a0a0107 | c40b07f2 | pure | waylib | pure |
 | 14 | ceac255 | — | mixed | waylib | waylib 侧改动在 `waylib-shared` 已存在（提示文案不同但均为 `QML_UNCREATABLE`），未产生新提交 |
 
@@ -139,4 +140,3 @@
 
 - `waylibshared..waylibshared-merge` 的变更文件数：24
 - 路径范围检查：仅包含 `waylib/` 与 `qwlroots/`（无其他目录路径被引入）
-
