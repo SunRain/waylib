@@ -1,2 +1,0 @@
-add_subdirectory(multitaskview)
-add_subdirectory(lockscreen)

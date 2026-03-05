@@ -19,8 +19,8 @@ option(DISABLE_WLR_PROTOCOLS "Disable support for wlr protocols, such as wlr-lay
 option(DISABLE_XWAYLAND "Disable the xwayland support" OFF)
 option(BUILD_SHARED_QWLROOTS_LIBS "Build shared qwlroots libraries" OFF)
 
-option(BUILD_QWLROOTS_EXAMPLES "Build qwlroots examples" ON)
-option(BUILD_QWLROOTS_TESTS "Build qwlroots tests" ON)
+option(BUILD_QWLROOTS_EXAMPLES "Build qwlroots examples" OFF)
+option(BUILD_QWLROOTS_TESTS "Build qwlroots tests" OFF)
 
 if(PREFER_QT_5)
     find_package(QT NAMES Qt5 REQUIRED COMPONENTS Core)
@@ -48,4 +48,3 @@ endif()
 if (BUILD_QWLROOTS_EXAMPLES)
 add_subdirectory(examples)
 endif()
-
