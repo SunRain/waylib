@@ -2,6 +2,9 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(Qt@QT_VERSION_MAJOR@Core REQUIRED)
+if(Qt@QT_VERSION_MAJOR@Core_VERSION VERSION_GREATER_EQUAL "6.10")
+    find_dependency(Qt@QT_VERSION_MAJOR@CorePrivate REQUIRED)
+endif()
 find_dependency(PkgConfig REQUIRED)
 
 pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET @wlr@=@WLROOTS_VERSION@)
