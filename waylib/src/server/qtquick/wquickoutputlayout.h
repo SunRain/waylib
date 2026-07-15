@@ -19,7 +19,7 @@ class WAYLIB_SERVER_EXPORT WQuickOutputLayout : public WOutputLayout
     Q_OBJECT
     W_DECLARE_PRIVATE(WQuickOutputLayout)
     QML_NAMED_ELEMENT(OutputLayout)
-    QML_UNCREATABLE("Only create in C++")
+    QML_UNCREATABLE("Cannot create OutputLayout from QML")
     Q_PROPERTY(QList<WOutputItem*> outputs READ outputs NOTIFY outputsChanged)
 
 public:
