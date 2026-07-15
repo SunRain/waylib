@@ -28,23 +28,6 @@ if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
   find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
 endif()
 
-# 查找ECM (Extra CMake Modules) - 在Qt之后查找以避免冲突
-find_package(ECM QUIET NO_MODULE)
-if(ECM_FOUND)
-    # 保存原始的CMAKE_MODULE_PATH
-    set(_ORIGINAL_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
-    set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${CMAKE_MODULE_PATH})
-
-    # 包含KDE CMake模块（可选）
-    include(KDEInstallDirs OPTIONAL)
-    include(KDECMakeSettings OPTIONAL)
-    include(ECMSetupVersion OPTIONAL)
-    include(ECMGenerateHeaders OPTIONAL)
-
-    message(STATUS "Using ECM (Extra CMake Modules) for enhanced CMake support")
-else()
-    message(STATUS "ECM not found, using standard CMake modules")
-endif()
 if(WITH_SUBMODULE_QWLROOTS)
   # Use qwlroots from project root directory
   # 传递BUILD_SHARED_LIBS选项给qwlroots子模块
