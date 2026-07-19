@@ -98,14 +98,24 @@ public:
             handleKeyEvent(evRelease);
         });
     }
-    ~WSeatPrivate() {
+
+    ~WSeatPrivate()
+    {
         if (onEventObjectDestroy)
             QObject::disconnect(onEventObjectDestroy);
 
-        for (auto device : std::as_const(deviceList))
-            detachInputDevice(device);
+        for (auto device : std::as_const(deviceList)) {
+            const bool wasAttached = device->seat() == q_func();
+            Q_ASSERT(wasAttached || !device->seat());
+            device->setSeat(nullptr);
+            if (wasAttached)
+                detachInputDevice(device);
+            else
+                Q_ASSERT(!device->qtDevice());
+        }
 
         if (groupkeyboardDevice) {
+            groupkeyboardDevice->setSeat(nullptr);
             detachInputDevice(groupkeyboardDevice);
             groupkeyboardDevice->safeDeleteLater();
         }
@@ -690,8 +700,9 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
         touchDeviceList.removeOne(device);
     }
 
-    if (device->type() == WInputDevice::Type::Keyboard) {
-        auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
+    if (device->type() == WInputDevice::Type::Keyboard && device != groupkeyboardDevice
+        && !device->isVirtual()) {
+        auto keyboard = qobject_cast<qw_keyboard *>(device->handle());
         wlr_keyboard_group_remove_keyboard(group, keyboard->handle());
     }
     [[maybe_unused]] bool ok = QWlrootsIntegration::instance()->removeInputDevice(device);
@@ -858,9 +869,21 @@ void WSeat::attachInputDevice(WInputDevice *device)
 void WSeat::detachInputDevice(WInputDevice *device)
 {
     W_D(WSeat);
+    // Devices can be queued before create(); they have no Qt device to unregister.
+    const bool wasAttached = device->seat() == this;
+    Q_ASSERT(wasAttached || (!isValid() && !device->seat()));
+
+    const bool wasQueued = d->deviceList.removeOne(device);
+    Q_ASSERT(wasQueued);
+    if (!wasQueued)
+        return;
+
     device->setSeat(nullptr);
-    d->deviceList.removeOne(device);
-    d->detachInputDevice(device);
+    if (wasAttached) {
+        d->detachInputDevice(device);
+    } else {
+        Q_ASSERT(!device->qtDevice());
+    }
 
     if (isValid())
         d->updateCapabilities();
